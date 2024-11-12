@@ -1,0 +1,129 @@
+---
+title: "RAVE Fragility"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include = FALSE}
+# This code block sets up the engine environment
+# Please do not remove me
+raveio::pipeline_setup_rmd("fragility_explorer")
+```
+
+## Introduction
+
+A RAVE pipeline markdown is an interactive notebook that can keep your notes, code blocks, and corresponding results together, generating reports in various formats such as `PDF`, `html`, `Word`, `PowerPoint`. 
+
+The note parts are simply `markdown`s - the same as `jupyter notebook`, or github documentations. The code blocks support `R`, `python`, `c++`. When you hit the `Knit` button in this code editor panel, the r-markdown file will be compiled, generating reproducible documentation.
+
+With carefully designed structures, this r-markdown file will automatically generate `RAVE` pipeline scripts during the compilation. The pipeline script can be used by `RAVE` to convert your pipeline into interactive dashboard application. (This feature is currently under development)
+
+## "RAVE" Pipeline Code Block
+
+A `RAVE` pipeline markdown code block starts with ` ```{rave ... `. The block label following `rave` informative description of the target. After the target, the following RAVE-specific parameters configures how the block should be treated:
+
+* `language`: specifies the programming language used; choices are: `R`, `python`
+* `export`: variable name to be exported that will be available to the rest chunks
+* `depends`: indicates current block depends on variables generated from other blocks; this helps `RAVE` to build non-interactive pipeline scripts internally. For blocks written in `R`, the dependence can be automatically determined.
+
+Other parameters are available at [this `rmarkdown` book](https://bookdown.org/yihui/rmarkdown/)
+
+## An Example
+
+In the rest of the documentation, let's import the subject power data, baseline, and plot the collapsed mean as image.
+
+#### Step 1: Create `RAVE` subject's instances
+
+Noting that all the items in the `settings.yaml` are available as variables.
+
+```{rave load_subject, language = "R", export = "subject", cue = "always", format = "rave-subject"}
+# Load subject instance
+subject <- raveio::RAVESubject$new(project_name = project_name,
+                                   subject_code = subject_code,
+                                   strict = TRUE)
+```
+
+With `export="subject"`, the subject variable will be registered for the following chunks to use. Be aware that all other variables created in this block will not be exposed.
+
+#### Step 2: Initialize and load voltage data
+
+Initialize the electrode instances and register the epoch, reference information
+
+```{rave load_electrodes, language = "R", export = "loading_elec"}
+loading_elec <- dipsaus::parse_svec(load_electrodes)
+loading_elec <- subject$electrodes[subject$electrodes %in% loading_elec]
+if(!length(loading_elec)) {
+  stop("No valid electrode to load!")
+}
+```
+```{rave display_electrodes, language = "R", export = "displayed_elec"}
+displayed_elec <- dipsaus::parse_svec(display_electrodes)
+displayed_elec <- subject$electrodes[subject$electrodes %in% displayed_elec]
+if(!length(displayed_elec)) {
+  stop("No valid electrode to load!")
+}
+```
+
+Start to load voltage. Here also create cache to the `RAVE` cache directory.
+
+```{rave load_voltage, language = "R", export = "repository"}
+repository <- raveio::prepare_subject_voltage_with_epoch(
+  subject = subject,
+  electrodes = loading_elec,
+  epoch_name = epoch_name,
+  reference_name = reference_name,
+  time_windows = epoch_time_window
+)
+```
+
+#### Step 3: Find Adjacency Array and Fragility Matrix
+
+```{rave find_adj_and_frag, language = "R", export = "adj_frag_info"}
+adj_frag_info <- calc_adj_frag(
+  repository = repository,
+  trial_num = trial_num,
+  t_window = t_window,
+  t_step = t_step,
+  lambda = lambda
+)
+```
+
+#### Step 4: Find Quantiles
+
+```{rave find_quantiles, language = "R", export = "quantiles"}
+quantiles <- frag_quantile(
+  repository = repository,
+  f = adj_frag_info$frag,
+  t_window = t_window,
+  t_step = t_step,
+  soz = soz,
+  sozc = sozc
+)
+```
+
+## Build, Visualize, & Run
+
+Please make sure the following code block is at the end of your pipeline file. This block will build the pipeline and generate a `make-fragility_explorer.R` script with your pipeline markdown file. `RAVE` will use the generated pipeline script to execute the pipeline in the dashboard application, or in massive production mode.
+
+```{r build, echo=FALSE, results='hide'}
+build_pipeline(make_file = "make-fragility_explorer.R")
+```
+
+
+Once the pipeline script `make-fragility_explorer.R` is built, you can visualize and execute the pipeline without the need of re-knit this document. Notice we use `r` block instead of `rave`. (This is because the code blocks are not part of pipeline targets.)
+
+```{r visualize, echo=FALSE}
+Sys.setenv("RAVE_PIPELINE" = normalizePath("."))
+try({
+  raveio::pipeline_visualize()
+}, silent = TRUE)
+```
+
+
+
+
+
+
+
+

@@ -62,6 +62,8 @@ modules:
     label: Stimulation Explorer
   phase_explorer:
     label: Phase Explorer
+  fragility_explorer:
+    label: Fragility
 divider:
   Preprocess:
     order: 0
