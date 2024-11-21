@@ -118,11 +118,9 @@ for(i in pts){
       output_files(results$repository, results$adj_frag_info$frag_ranked, results$quantiles,
                    fragility_pipeline$get_settings(),export,"ranked", moving_average_width)
 
-      # save R2 to csv with optimal lambdas
-      raveio::safe_write_csv(
-        rbind(results$adj_frag_info$R2, results$adj_frag_info$lambdas),
-        file.path(export, paste0("/",subject_code,"_",fragility_pipeline$get_settings("condition"),"_R2.csv"))
-      )
+      # save R2 results
+      output_R2(results$repository, results$adj_frag_info$R2, results$adj_frag_info$lambdas,
+                fragility_pipeline$get_settings(),export)
 
       # print results to pdf
       pdf_path <- file.path(export, paste0(subject_code,'_',fragility_pipeline$get_settings("condition"),"_reconstruction.pdf"))

@@ -256,6 +256,74 @@ output_files <- function(repository, f, quantile_results, pipeline_settings, exp
   )
 }
 
+output_R2 <- function(repository, R2, lambdas, pipeline_settings, export) {
+
+  subject_code <- pipeline_settings$subject_code
+  sz_num <- pipeline_settings$condition
+  t_window <- pipeline_settings$t_window
+  t_step <- pipeline_settings$t_step
+  soz <- pipeline_settings$soz
+  sozc <- pipeline_settings$sozc
+  sz_onset <- pipeline_settings$sz_onset
+  epoch_time_window <- pipeline_settings$epoch_time_window
+
+  # save R2 to csv with optimal lambdas
+  raveio::safe_write_csv(
+    rbind(R2, lambdas),
+    file.path(export, paste0("/",subject_code,"_",sz_num,"_R2.csv"))
+  )
+
+  n_tps <- length(repository$voltage$dimnames$Time)
+  n_elec <- length(repository$voltage$dimnames$Electrode)
+  n_steps <- floor((n_tps - t_window) / t_step) + 1
+  epoch_time_window <- repository$time_windows[[1]]
+  fs <- round(repository$sample_rate,-1)
+  if(any(repository$electrode_table$Label == "NoLabel")) {
+    elec_names <- repository$electrode_table$Electrode[match(c(soz,sozc), repository$electrode_table$Electrode)]
+    elec_names <- as.character(elec_names)
+  } else {
+    elec_names <- repository$electrode_table$Label[match(c(soz,sozc), repository$electrode_table$Electrode)]
+  }
+
+  # create fragility map with soz electrodes separated from sozc electrodes
+
+  stimes <- (seq_len(n_steps)-1)*t_step/fs+epoch_time_window[1]
+  R2plot <- expand.grid(Time = stimes, Electrode = elec_names)
+  R2plot$Value <- c(t(R2))
+  R2plot$lambda <- lambdas
+
+  colorelec <- rep("black",length(c(soz,sozc)))
+  colorelec[1:length(soz)]="blue"
+
+  df <- data.frame(stimes,lambdas)
+
+  titlepng=paste(subject_code, "Seizure",as.character(sz_num),"R2",sep=" ")
+
+  ggplot() +
+    geom_tile(data = R2plot, aes(x = Time, y = Electrode, fill = Value)) +
+    geom_line(data = df, aes(x = stimes, y=lambdas, color = "Optimal lambda")) +
+    ggtitle(titlepng)+
+    geom_vline(xintercept = sz_onset, color = "blue") +
+    labs(x = "Time (s)", y = "Electrode", color = "Legend") +
+    scale_fill_gradient2(low="red4", mid="red", high="white",midpoint=0) +  #
+    scale_color_manual(values = c("Optimal lambda" = "black")) +
+    theme_minimal()
+  img <- paste0(export, "/",subject_code,"_",sz_num,"_R2.png")
+  ggsave(img)
+
+  titlepng=paste(subject_code,"Seizure",as.character(sz_num),"Optimal Lambda Over Time",sep=" ")
+
+  ggplot(df, aes(stimes)) +
+    geom_point(aes(y=lambdas)) +
+    geom_line(aes(y=lambdas)) +
+    geom_vline(xintercept = sz_onset, color = "blue") +
+    labs(x = "Time", y = "Optimal lambda value") +
+    ggtitle(titlepng)
+
+  lambda_plot <- paste0(export,"/",subject_code,"_",sz_num,"_lambda_plot.png")
+  ggsave(lambda_plot)
+}
+
 voltage_recon_plot <- function(repository, adj_frag_info, t_window, t_step, trial_num, timepoints = 1:250, elec_num = 1, percentile = 0.1, lambda) {
 
   A <- adj_frag_info$adj
