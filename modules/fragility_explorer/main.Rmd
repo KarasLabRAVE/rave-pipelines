@@ -85,7 +85,11 @@ adj_frag_info <- calc_adj_frag(
   trial_num = trial_num,
   t_window = t_window,
   t_step = t_step,
-  lambda = lambda
+  soz = soz,
+  sozc = sozc,
+  lambda = lambda,
+  nSearch = nSearch,
+  fs_new = fs_new
 )
 ```
 
@@ -98,7 +102,8 @@ quantiles <- frag_quantile(
   t_window = t_window,
   t_step = t_step,
   soz = soz,
-  sozc = sozc
+  sozc = sozc,
+  fs_new = fs_new
 )
 ```
 

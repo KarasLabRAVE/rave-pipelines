@@ -285,7 +285,91 @@ fragilityRow <- function(A, nSearch = 100) {
   return(fragNorm)
 }
 
-calc_adj_frag <- function(repository, trial_num, t_window, t_step, lambda) {
+calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, lambda = NULL, nSearch = 100, fs_new = NULL) {
+  n_tps <- length(repository$voltage$dimnames$Time)
+  n_elec <- length(repository$voltage$dimnames$Electrode)
+
+  # Number of steps
+  n_steps <- floor((n_tps - t_window) / t_step) + 1
+
+  # slice of data
+  arr <- filearray::filearray_load_or_create(
+    filebase = tempfile(),
+    dimension = c(n_tps, n_elec),
+    type = "float", mode = "readwrite", partition_size = 1L,
+
+    # if repository has changed, re-calculate
+    repository_signature = repository$signature,
+    t_step = t_step, t_window = t_window,
+    trial_num = trial_num,
+
+    on_missing = function(arr) {
+      arr$set_header("ready", value = FALSE)
+    }
+  )
+
+  # check if header `ready` is not TRUE
+  if(!isTRUE(arr$get_header("ready", FALSE))) {
+
+    loaded_electrodes <- repository$electrode_list
+    raveio::lapply_async(repository$voltage$data_list, function(v) {
+      e <- dimnames(v)$Electrode
+      idx_e <- loaded_electrodes == e
+
+      arr[,idx_e] <- v[, trial_num, 1, drop = TRUE, dimnames = NULL]
+
+      return()
+    })
+  }
+
+  signalScaling <- 10^floor(log10(max(arr[])))
+  arr[] <- arr[]/signalScaling
+
+  if(!is.null(fs_new)) {
+    arr <- gsignal::resample(original,fs_new,round(repository$sample_rate))
+    n_tps <- dim(arr)[1]
+    n_steps <- floor((n_tps - t_window) / t_step) + 1
+  }
+
+  pt01EpochRaw <- t(arr[])
+
+  goodChannels <- repository$electrode_list
+  rownames(pt01EpochRaw) <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% goodChannels]
+  sozNames<-repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
+  sozIndex<-which(repository$electrode_list%in%soz==TRUE)
+
+  ## Add time stamps to the columns
+  times <- seq(repository$time_windows[[1]][1], repository$time_windows[[1]][2], length.out=ncol(pt01EpochRaw))
+  times_with_sign <- ifelse(times >= 0, paste0("+", times), as.character(times))
+  colnames(pt01EpochRaw)<-times_with_sign
+
+  pt01EcoG<-pt01EpochRaw
+  attr(pt01EcoG, "sozIndex") <- sozIndex
+  attr(pt01EcoG, "sozNames") <- sozNames
+
+  cl <- parallel::makeCluster(4, type = "SOCK")
+  doSNOW::registerDoSNOW(cl)
+
+  epoch <- EZFragility::Epoch(pt01EcoG)
+  title <- repository$epoch_name
+  fragtest<-EZFragility::calcAdjFrag(
+    epoch = epoch, window = t_window,
+    step = t_step, parallel = TRUE, progress = TRUE
+  )
+
+  ## stop the parallel backend
+  parallel::stopCluster(cl)
+
+  return(list(
+    voltage = arr[],
+    frag = fragtest$frag,
+    frag_ranked = fragtest$frag_ranked,
+    R2 = fragtest$R2,
+    lambdas = fragtest$lambdas
+  ))
+}
+
+calc_adj_frag_old <- function(repository, trial_num, t_window, t_step, lambda = NULL, nSearch = 100, fs_new = NULL) {
 
   n_tps <- length(repository$voltage$dimnames$Time)
   n_elec <- length(repository$voltage$dimnames$Electrode)
@@ -326,6 +410,12 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, lambda) {
   signalScaling <- 10^floor(log10(max(arr[])))
   arr[] <- arr[]/signalScaling
 
+  if(!is.null(fs_new)) {
+    arr <- gsignal::resample(arr[],fs_new,repository$sample_rate)
+    n_tps <- dim(arr)[1]
+    n_steps <- floor((n_tps - t_window) / t_step) + 1
+  }
+
   ## create adjacency array (array of adj matrices for each time window)
   ## iw: The index of the window we are going to calculate fragility
 
@@ -340,10 +430,10 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, lambda) {
     ## Coefficient matrix A (adjacency matrix)
     ## each column is coefficients from a linear regression
     ## formula: xtp1 = xt*A + E
-    if (class(lambda) == "numeric") {
+    if (!is.null(lambda)) {
       #message(paste0("running with lambda = ", lambda))
       Ai <- ridge(xt, xtp1, intercept = F, lambda = lambda, iw = iw)
-    } else if (class(lambda) == "logical") {
+    } else {
       #message("running lambda search")
       Ai <- ridgesearchlambdadichomotomy(xt, xtp1, intercept = F, iw = iw)
     }
@@ -382,7 +472,7 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, lambda) {
 
   # calculate fragility
   f <- unlist(raveio::lapply_async(seq_len(n_steps), function(iw){
-    fragilityRowNormalized(A[,,iw])
+    fragilityRowNormalized(A[,,iw], nSearch = nSearch)
   }, callback = function(iw) {
     sprintf("Calculating Fragility|Timewindow %s", iw)
   }))
@@ -408,12 +498,17 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, lambda) {
   ))
 }
 
-frag_quantile <- function(repository, f, t_window, t_step, soz, sozc){
+frag_quantile <- function(repository, f, t_window, t_step, soz, sozc, fs_new = NULL){
   n_tps <- length(repository$voltage$dimnames$Time)
   n_elec <- length(repository$voltage$dimnames$Electrode)
-  n_steps <- floor((n_tps - t_window) / t_step) + 1
+  n_steps <- dim(f)[2]
   epoch_time_window <- repository$time_windows[[1]]
   fs <- round(repository$sample_rate,-1)
+
+  if(!is.null(fs_new)){
+    fs <- fs_new
+  }
+
   if(any(repository$electrode_table$Label == "NoLabel")) {
     elec_names <- repository$electrode_table$Electrode[match(c(soz,sozc), repository$electrode_table$Electrode)]
     elec_names <- as.character(elec_names)
@@ -422,7 +517,11 @@ frag_quantile <- function(repository, f, t_window, t_step, soz, sozc){
   }
 
   # create fragility map with soz electrodes separated from sozc electrodes
-  fmap <- f[as.character(c(soz,sozc)),]
+  #sozNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
+  #sozcNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% sozc]
+  soz_i <- match(soz,pipeline_settings$load_electrodes)
+  sozc_i <- match(sozc,pipeline_settings$load_electrodes)
+  fmap <- f[c(soz_i,sozc_i),]
   stimes <- (seq_len(n_steps)-1)*t_step/fs+epoch_time_window[1]
 
   # raw fragility map
@@ -430,8 +529,8 @@ frag_quantile <- function(repository, f, t_window, t_step, soz, sozc){
   fplot$Value <- c(t(fmap))
 
   # create separate heatmaps for soz and sozc for quantile calcs
-  hmapsoz <- fmap[as.character(soz),]
-  hmapsozc <- fmap[as.character(sozc),]
+  hmapsoz <- fmap[soz_i,]
+  hmapsozc <- fmap[sozc_i,]
 
   #f90soz=quantile(hmapsoz, probs=c(0.9))
   #f90sozc=quantile(hmapsozc,probs=c(0.9))
@@ -523,15 +622,22 @@ frag_quantile <- function(repository, f, t_window, t_step, soz, sozc){
 }
 
 mean_f_calc <- function(repository, f, soz, sozc) {
+
   mean_f_soz <- rep(0,dim(f)[2])
   mean_f_sozc <- rep(0,dim(f)[2])
   se_f_soz <- rep(0,dim(f)[2])
   se_f_sozc <- rep(0,dim(f)[2])
+
+  # sozNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
+  # sozcNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% sozc]
+  soz_i <- match(soz,pipeline_settings$load_electrodes)
+  sozc_i <- match(sozc,pipeline_settings$load_electrodes)
+
   for (i in seq_len(dim(f)[2])){
-    mean_f_soz[i] <- mean(f[as.character(soz),i])
-    se_f_soz[i] <- sd(f[as.character(soz),i])/sqrt(length(soz))
-    mean_f_sozc[i] <- mean(f[as.character(sozc),i])
-    se_f_sozc[i] <- sd(f[as.character(sozc),i]/sqrt(length(sozc)))
+    mean_f_soz[i] <- mean(f[soz_i,i])
+    se_f_soz[i] <- sd(f[soz_i,i])/sqrt(length(soz))
+    mean_f_sozc[i] <- mean(f[sozc_i,i])
+    se_f_sozc[i] <- sd(f[sozc_i,i]/sqrt(length(sozc)))
   }
   return(list(
     mean_f_soz = mean_f_soz,
@@ -588,6 +694,12 @@ threshold_fragility <- function(repository, adj_frag_info, t_step, threshold_sta
     avg_f = avg_f,
     elecnames = attr(elec, "names")
   ))
+}
+
+voltage_resample <- function(v,fs_new,fs_old) {
+  dumm<-t(electrodes_by_time)
+  v_resample<-gsignal::resample(v,fs_new,fs_old)
+  elec_resamp<-t(v_resample)
 }
 #
 # ridgecv <- function(xt, xtp1, parallel=FALSE) {

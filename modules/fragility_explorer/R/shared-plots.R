@@ -31,6 +31,11 @@ fragility_plot <- function(repository, adj_frag_info, pipeline_settings, display
   sozc <- pipeline_settings$sozc
   sz_onset <- pipeline_settings$sz_onset
 
+  #sozNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
+  #sozcNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% sozc]
+  soz_i <- match(soz,pipeline_settings$load_electrodes)
+  sozc_i <- match(sozc,pipeline_settings$load_electrodes)
+
   if(ranked){
     note <- "ranked"
     f <- adj_frag_info$frag_ranked
@@ -44,22 +49,24 @@ fragility_plot <- function(repository, adj_frag_info, pipeline_settings, display
   n_steps <- floor((n_tps - t_window) / t_step) + 1
   epoch_time_window <- repository$time_windows[[1]]
   fs <- round(repository$sample_rate,-1)
-  if(any(repository$electrode_table$Label == "NoLabel")) {
-    elec_names <- repository$electrode_table$Electrode[match(c(soz,sozc), repository$electrode_table$Electrode)]
-    elec_names <- as.character(elec_names)
-  } else {
-    elec_names <- repository$electrode_table$Label[match(c(soz,sozc), repository$electrode_table$Electrode)]
-  }
 
   # make soz electrodes separate color for heatmap labels
   colorelec <- ifelse(display_electrodes%in%soz,"red","black")
-  display_i <- match(as.character(display_electrodes),dimnames(f)$Electrode)
-  names(colorelec) <- dimnames(f)$Electrode[display_i]
+  display_i <- match(display_electrodes,pipeline_settings$load_electrodes)
+
+  if(any(repository$electrode_table$Label == "NoLabel")) {
+    elec_names <- repository$electrode_table$Electrode[match(c(soz,sozc), repository$electrode_table$Electrode)]
+    elec_names <- as.character(elec_names)
+    names(colorelec) <- as.character(display_electrodes)
+  } else {
+    elec_names <- repository$electrode_table$Label[match(c(soz,sozc), repository$electrode_table$Electrode)]
+    names(colorelec) <- dimnames(f)$Electrode[display_i]
+  }
 
   if (sepsoz){
     # create fragility map with soz electrodes separated from sozc electrodes
-    f <- f[as.character(c(soz,sozc)),]
-    colorelec <- colorelec[as.character(c(soz,sozc))]
+    f <- f[c(soz_i,sozc_i),]
+    colorelec <- colorelec[c(soz_i,sozc_i)]
   }
 
   # convert time windows to seconds
@@ -256,7 +263,7 @@ output_files <- function(repository, f, quantile_results, pipeline_settings, exp
   )
 }
 
-output_R2 <- function(repository, R2, lambdas, pipeline_settings, export) {
+output_R2 <- function(repository, R2, lambdas, pipeline_settings, export, fs_new = NULL) {
 
   subject_code <- pipeline_settings$subject_code
   sz_num <- pipeline_settings$condition
@@ -275,7 +282,7 @@ output_R2 <- function(repository, R2, lambdas, pipeline_settings, export) {
 
   n_tps <- length(repository$voltage$dimnames$Time)
   n_elec <- length(repository$voltage$dimnames$Electrode)
-  n_steps <- floor((n_tps - t_window) / t_step) + 1
+  n_steps <- dim(R2)[2]
   epoch_time_window <- repository$time_windows[[1]]
   fs <- round(repository$sample_rate,-1)
   if(any(repository$electrode_table$Label == "NoLabel")) {
@@ -286,6 +293,10 @@ output_R2 <- function(repository, R2, lambdas, pipeline_settings, export) {
   }
 
   # create fragility map with soz electrodes separated from sozc electrodes
+
+  if(!is.null(fs_new)){
+    fs <- fs_new
+  }
 
   stimes <- (seq_len(n_steps)-1)*t_step/fs+epoch_time_window[1]
   R2plot <- expand.grid(Time = stimes, Electrode = elec_names)
