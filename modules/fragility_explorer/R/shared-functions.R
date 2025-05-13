@@ -326,7 +326,7 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, la
   arr[] <- arr[]/signalScaling
 
   if(!is.null(fs_new)) {
-    arr <- gsignal::resample(original,fs_new,round(repository$sample_rate))
+    arr <- gsignal::resample(arr[],fs_new,round(repository$sample_rate))
     n_tps <- dim(arr)[1]
     n_steps <- floor((n_tps - t_window) / t_step) + 1
   }
@@ -519,8 +519,8 @@ frag_quantile <- function(repository, f, t_window, t_step, soz, sozc, fs_new = N
   # create fragility map with soz electrodes separated from sozc electrodes
   #sozNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
   #sozcNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% sozc]
-  soz_i <- match(soz,pipeline_settings$load_electrodes)
-  sozc_i <- match(sozc,pipeline_settings$load_electrodes)
+  soz_i <- match(soz,repository$electrode_list)
+  sozc_i <- match(sozc,repository$electrode_list)
   fmap <- f[c(soz_i,sozc_i),]
   stimes <- (seq_len(n_steps)-1)*t_step/fs+epoch_time_window[1]
 
@@ -630,8 +630,8 @@ mean_f_calc <- function(repository, f, soz, sozc) {
 
   # sozNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
   # sozcNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% sozc]
-  soz_i <- match(soz,pipeline_settings$load_electrodes)
-  sozc_i <- match(sozc,pipeline_settings$load_electrodes)
+  soz_i <- match(soz,repository$electrode_list)
+  sozc_i <- match(sozc,repository$electrode_list)
 
   for (i in seq_len(dim(f)[2])){
     mean_f_soz[i] <- mean(f[soz_i,i])

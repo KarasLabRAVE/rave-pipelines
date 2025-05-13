@@ -33,8 +33,8 @@ fragility_plot <- function(repository, adj_frag_info, pipeline_settings, display
 
   #sozNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
   #sozcNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% sozc]
-  soz_i <- match(soz,pipeline_settings$load_electrodes)
-  sozc_i <- match(sozc,pipeline_settings$load_electrodes)
+  soz_i <- match(soz,repository$electrode_list)
+  sozc_i <- match(sozc,repository$electrode_list)
 
   if(ranked){
     note <- "ranked"
@@ -52,7 +52,7 @@ fragility_plot <- function(repository, adj_frag_info, pipeline_settings, display
 
   # make soz electrodes separate color for heatmap labels
   colorelec <- ifelse(display_electrodes%in%soz,"red","black")
-  display_i <- match(display_electrodes,pipeline_settings$load_electrodes)
+  display_i <- match(display_electrodes,repository$electrode_list)
 
   if(any(repository$electrode_table$Label == "NoLabel")) {
     elec_names <- repository$electrode_table$Electrode[match(c(soz,sozc), repository$electrode_table$Electrode)]
@@ -188,7 +188,7 @@ output_files <- function(repository, f, quantile_results, pipeline_settings, exp
 
   # fragility heatmap
   colorelec <- rep("black",length(c(soz,sozc)))
-  colorelec[1:length(soz)]="blue"
+  colorelec[1:length(soz)]="red"
 
   titlepng=paste(subject_code,as.character(sz_num),note,sep=" ")
 
@@ -197,6 +197,7 @@ output_files <- function(repository, f, quantile_results, pipeline_settings, exp
     ggtitle(titlepng)+
     labs(x = "Time (s)", y = "Electrode") +
     scale_fill_gradient2(low="navy", mid="white", high="red",midpoint=0.5)+  #
+    geom_vline(xintercept = sz_onset, color = "black", linewidth = 1.5, linetype = 5) +
     theme_minimal() +
     theme(
       axis.text.y = ggtext::element_markdown(size = 5,colour=colorelec),     # Adjust depending on electrodes
@@ -218,6 +219,7 @@ output_files <- function(repository, f, quantile_results, pipeline_settings, exp
     ggtitle(titlepng)+
     labs(x = "Time (s)", y = "Statistic") +
     scale_fill_gradient2(low="navy", mid="white", high="red",midpoint=0.5) +  #
+    geom_vline(xintercept = sz_onset, color = "black", linewidth = 1.5, linetype = 5) +
     theme_minimal() +
     theme(
       axis.text.y = element_text(size = 10),     # Adjust depending on electrodes
@@ -246,7 +248,7 @@ output_files <- function(repository, f, quantile_results, pipeline_settings, exp
     geom_line(aes(y=mean_f_sozc, color = "SOZc +/- sem")) +
     geom_ribbon(aes(ymin = mean_f_soz - se_f_soz, ymax = mean_f_soz + se_f_soz), fill = "indianred3", alpha = 0.7) +
     geom_ribbon(aes(ymin = mean_f_sozc - se_f_sozc, ymax = mean_f_sozc + se_f_sozc), fill = "grey30", alpha = 0.6) +
-    geom_vline(xintercept = sz_onset, color = "blue") +
+    geom_vline(xintercept = sz_onset, color = "black", linewidth = 1.5, linetype = 5) +
     scale_color_manual(values = c("SOZ +/- sem" = "red", "SOZc +/- sem" = "black")) +
     labs(x = "Time", y = "Average Fragility", color = "Legend") +
     ggtitle(titlepng)
@@ -304,7 +306,7 @@ output_R2 <- function(repository, R2, lambdas, pipeline_settings, export, fs_new
   R2plot$lambda <- lambdas
 
   colorelec <- rep("black",length(c(soz,sozc)))
-  colorelec[1:length(soz)]="blue"
+  colorelec[1:length(soz)]="red"
 
   df <- data.frame(stimes,lambdas)
 

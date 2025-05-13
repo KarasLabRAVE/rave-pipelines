@@ -8,11 +8,14 @@ library(h2o)
 library(signal)
 
 # define which patients to read from patient_data file
-pts <- dipsaus::parse_svec("1-35,37-42,50-60,65-67,75-76,121,125,127,135,157-159")
+#pts <- dipsaus::parse_svec("1-35,37-42,50-60,65-67,75-76,121,125,127,135,157-159") # old patient data file
+pts <- dipsaus::parse_svec("1-40,47-71") # Fragility and NIH pts only
+pts <- dipsaus::parse_svec("1-40,47-92,95-99") # Fragility, NIH, and Karas pts
+pts <- dipsaus::parse_svec("72-92") # Karas pts only
 
 # read patient_data file
 patient_key <-
-    read.csv("/Users/ozhou/Library/CloudStorage/OneDrive-TexasA&MUniversity/Karas Lab/patient_data_all_rev.csv", header = TRUE, stringsAsFactors = FALSE)|>
+    read.csv("/Volumes/bigbrain/Multipatient/patient_data_FINAL.csv", header = TRUE, stringsAsFactors = FALSE)|>
     mutate(
       condition = gsub("\\s.*", "", condition)
     )|>
@@ -23,7 +26,7 @@ patient_key <- patient_key[pts,]
 patient_key$subject_code
 
 # choose folder with results for analysis
-folder <- "/Volumes/bigbrain/Fragility2024/Results/250-125"
+folder <- "/Volumes/bigbrain/Fragility_Results/250-125_lambda_n_100"
 
 # specify norank
 note <- "norank"
@@ -109,7 +112,7 @@ all_dataframes_annotation2 <-
           "condition" = "condition")
           )
 
-## find out the number of readings for each electrode
+## times
 times <- lapply(all_dataframes, function(x) as.numeric(gsub("^\\.","\\-",gsub("^X", "", colnames(x)))))
 
 # identify patient with lowest sample rate

@@ -5,24 +5,32 @@ library('dplyr')
 library("pracma")
 
 # define which patients to read from patient_data file
-pts <- dipsaus::parse_svec("1-35,37-42,50-60,65-67,75-76,121,125,127,135,157-159")
+pts <- dipsaus::parse_svec("1-40,47-71") # Fragility and NIH pts only
+#pts <- dipsaus::parse_svec("1-40,47-92,95-99") # Fragility, NIH, and Karas pts
+#pts <- dipsaus::parse_svec("1-12,16-21,26-34,39,47-53,55,61-92,95-99") # Fragility, NIH, and Karas pts with avg R2 > 0.8
+#pts <- dipsaus::parse_svec("1-12,16-21,26-34,39,47-53,55,61-71") # Fragility and NIH pts with avg R2 >0.8 only
+#pts <- dipsaus::parse_svec("72-92,95-99") # Karas pts only
 
 # read patient_data file
-patient_key <- read.csv("/Volumes/bigbrain/Multipatient/patient_data_all.csv")
+patient_key <- read.csv("/Volumes/bigbrain/Multipatient/patient_data_FINAL.csv")
 
 # check which patients are being run
 patient_key$subject[pts]
 
 # choose folder with results for analysis
-folder <- "/Volumes/bigbrain/Fragility2024/Results/250-125"
+folder <- "/Volumes/bigbrain/EZFragility_Results/250-125_lambda_n_100"
 
 note <- "norank"
+file_identifiers <- paste0(patient_key$subject[pts],"_", patient_key$condition[pts])
+
 csv_files <- NULL
 
 for (subject_code in unique(patient_key$subject_code[pts])) {
   directory <- paste0(folder,"/",subject_code,"/",note)
   if (file.exists(directory)) {
-    csv_files <- append(csv_files,list.files(directory, pattern = paste0(note,"\\.csv$"), full.names = TRUE))
+    for (filename in file_identifiers) {
+      csv_files <- append(csv_files,list.files(directory, pattern = paste0(filename,"_meandata_",note,"\\.csv$"), full.names = TRUE))
+    }
   } else {
     print(paste0("patient ", subject_code, " error"))
   }
@@ -131,8 +139,8 @@ max_value <- max(max( (mean(seizure_free$auc_other_fragility) + quantile(seizure
 # max_value <- max(seizure_free$power, not_seizure_free$power)
 
 # Filter data for resect 0 and 1 groups
-group_0 <- seizure_free$auc_other_fragility
-group_1 <- seizure_free$auc_soz_fragility
+SzF_soz <- seizure_free$auc_soz_fragility
+SzF_other <- seizure_free$auc_other_fragility
 
 # Function to calculate mode
 Mode <- function(x) {
@@ -141,87 +149,89 @@ Mode <- function(x) {
 }
 
 # Summary statistics
-summary_stats_0 <- c(
-  N = length(group_0),
-  Min = format(min(group_0), digits = 3),
-  Max = format(max(group_0), digits = 3),
-  Mean = format(mean(group_0), digits = 3),
-  Range = format(diff(range(group_0)), digits = 3),
-  Median = format(median(group_0), digits = 3),
-  Mode = format(Mode(group_0), digits = 3),
-  SD = format(sd(group_0), digits = 3)
+
+summary_stats_SzF_soz <- c(
+  N = length(SzF_soz),
+  Min = format(min(SzF_soz), digits = 3),
+  Max = format(max(SzF_soz), digits = 3),
+  Mean = format(mean(SzF_soz), digits = 3),
+  Range = format(diff(range(SzF_soz)), digits = 3),
+  Median = format(median(SzF_soz), digits = 3),
+  Mode = format(Mode(SzF_soz), digits = 3),
+  SD = format(sd(SzF_soz), digits = 3)
 )
 
-summary_stats_1 <- c(
-  N = length(group_1),
-  Min = format(min(group_1), digits = 3),
-  Max = format(max(group_1), digits = 3),
-  Mean = format(mean(group_1), digits = 3),
-  Range = format(diff(range(group_1)), digits = 3),
-  Median = format(median(group_1), digits = 3),
-  Mode = format(Mode(group_1), digits = 3),
-  SD = format(sd(group_1), digits = 3)
+summary_stats_SzF_other <- c(
+  N = length(SzF_other),
+  Min = format(min(SzF_other), digits = 3),
+  Max = format(max(SzF_other), digits = 3),
+  Mean = format(mean(SzF_other), digits = 3),
+  Range = format(diff(range(SzF_other)), digits = 3),
+  Median = format(median(SzF_other), digits = 3),
+  Mode = format(Mode(SzF_other), digits = 3),
+  SD = format(sd(SzF_other), digits = 3)
 )
 
 # Statistical test (two-sample t-test)
-t_test_result <- t.test(group_0, group_1)
+t_test_result1 <- t.test(SzF_soz, SzF_other, conf.level = 0.99)
 
-# Print summary statistics for resect "0" group
-print("Seizure Free: Summary statistics for resect Not EZ:")
-print(summary_stats_0)
-
-# Print summary statistics for resect "1" group
+# Print summary statistics for resect EZ group
 print("Seizure Free: Summary statistics for resect EZ:")
-print(summary_stats_1)
+print(summary_stats_SzF_soz)
+
+# Print summary statistics for resect not EZ group
+print("Seizure Free: Summary statistics for resect Not EZ:")
+print(summary_stats_SzF_other)
 
 # Print t-test result
 print("Seizure Free: T-test result:")
-print(t_test_result)
+print(t_test_result1)
 
-group_0 <- not_seizure_free$auc_other_fragility
-group_1 <- not_seizure_free$auc_soz_fragility
+NSzF_soz <- not_seizure_free$auc_soz_fragility
+NSzF_other <- not_seizure_free$auc_other_fragility
 
 # Summary statistics
-summary_stats_0 <- c(
-  N = length(group_0),
-  Min = format(min(group_0), digits = 3),
-  Max = format(max(group_0), digits = 3),
-  Mean = format(mean(group_0), digits = 3),
-  Range = format(diff(range(group_0)), digits = 3),
-  Median = format(median(group_0), digits = 3),
-  Mode = format(Mode(group_0), digits = 3),
-  SD = format(sd(group_0), digits = 3)
+
+summary_stats_NSzF_soz <- c(
+  N = length(NSzF_soz),
+  Min = format(min(NSzF_soz), digits = 3),
+  Max = format(max(NSzF_soz), digits = 3),
+  Mean = format(mean(NSzF_soz), digits = 3),
+  Range = format(diff(range(NSzF_soz)), digits = 3),
+  Median = format(median(NSzF_soz), digits = 3),
+  Mode = format(Mode(NSzF_soz), digits = 3),
+  SD = format(sd(NSzF_soz), digits = 3)
 )
 
-summary_stats_1 <- c(
-  N = length(group_1),
-  Min = format(min(group_1), digits = 3),
-  Max = format(max(group_1), digits = 3),
-  Mean = format(mean(group_1), digits = 3),
-  Range = format(diff(range(group_1)), digits = 3),
-  Median = format(median(group_1), digits = 3),
-  Mode = format(Mode(group_1), digits = 3),
-  SD = format(sd(group_1), digits = 3)
+summary_stats_NSzF_other <- c(
+  N = length(NSzF_other),
+  Min = format(min(NSzF_other), digits = 3),
+  Max = format(max(NSzF_other), digits = 3),
+  Mean = format(mean(NSzF_other), digits = 3),
+  Range = format(diff(range(NSzF_other)), digits = 3),
+  Median = format(median(NSzF_other), digits = 3),
+  Mode = format(Mode(NSzF_other), digits = 3),
+  SD = format(sd(NSzF_other), digits = 3)
 )
 
 # Statistical test (two-sample t-test)
-t_test_result <- t.test(group_0, group_1)
+t_test_result2 <- t.test(NSzF_soz, NSzF_other, conf.level = 0.99)
 
 # Print summary statistics for resect "0" group
 print("Not Seizure Free: Summary statistics for resect Not EZ:")
-print(summary_stats_0)
+print(summary_stats_NSzF_other)
 
 # Print summary statistics for resect "1" group
 print("Not Seizure Free: Summary statistics for resect EZ:")
-print(summary_stats_1)
+print(summary_stats_NSzF_soz)
 
 # Print t-test result
 print("Not Seizure Free: T-test result:")
-print(t_test_result)
+print(t_test_result2)
 
 # Create box plot
 # Define the directory where you want to save the plots
-output_dir <- "/Users/ozhou/Library/CloudStorage/OneDrive-TexasA&MUniversity/Karas Lab"
+output_dir <- "/Volumes/bigbrain/EZFragility_Results/Data_Analysis"
 
 # Add a new 'group' column
 seizure_free$group <- "Seizure Free"
@@ -261,26 +271,27 @@ plot <- ggplot(long_data, aes(x = group, y = auc_values, fill = Label)) +
 print(plot)
 
 # Save the plot as an image
-ggsave(file.path(output_dir, paste0(note, "_seizure_free_auc_plot.png")), plot = plot, width = 85, height = 34, units = "cm")
+# ggsave(file.path(output_dir, paste0(note, "_seizure_free_auc_plot.png")), plot = plot, width = 85, height = 34, units = "cm")
 
 # Perform more pairwise testing
-group_0 <- seizure_free$auc_soz_fragility
-group_1 <- not_seizure_free$auc_soz_fragility
-t_test_result <- t.test(group_0, group_1)
+t_test_result3 <- t.test(SzF_soz, NSzF_soz)
 # Print t-test result
 print("Seizure Free EZ vs Not Seizure Free EZ: T-test result:")
-print(t_test_result)
+print(t_test_result3)
 
 
 # Perform more pairwise testing
-group_0 <- seizure_free$auc_other_fragility
-group_1 <- not_seizure_free$auc_other_fragility
-t_test_result <- t.test(group_0, group_1)
+t_test_result4 <- t.test(SzF_other, NSzF_other)
 # Print t-test result
 print("Seizure Free Not EZ vs Not Seizure Free Not EZ: T-test result:")
-print(t_test_result)
+print(t_test_result4)
 
-p.adjust(c(5.279e-08, 0.03786, 0.8105, 0.00257), method = "bonferroni")
+p.adjust(c(t_test_result1$p.value, t_test_result2$p.value, t_test_result3$p.value, t_test_result4$p.value), method = "bonferroni")
+
+summary_stats_SzF_soz
+summary_stats_SzF_other
+summary_stats_NSzF_soz
+summary_stats_NSzF_other
 
 # Helper Functions
 convert_range_to_vector <- function(range_string) {

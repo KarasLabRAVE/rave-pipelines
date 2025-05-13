@@ -68,7 +68,10 @@ for(t in 1:4) {
 
       subject_check <- raveio::validate_subject(paste0(project,"/",subject_code),
                                                 method = "basic", verbose = FALSE)
-      subject_check$paths$data_path$valid
+
+      if(!subject_check$paths$data_path$valid){
+        stop("Subject data path is not valid!")
+      }
 
       print(paste0("starting pipeline for pt: ", subject_code, ", ", condition))
 
@@ -140,26 +143,6 @@ for(t in 1:4) {
           # save R2 results
           output_R2(results$repository, results$adj_frag_info$R2, results$adj_frag_info$lambdas,
                     fragility_pipeline$get_settings(),export, fragility_pipeline$get_settings("fs_new"))
-
-          # try({
-          #   # print results to pdf
-          #   pdf_path <- file.path(export, paste0(subject_code,'_',fragility_pipeline$get_settings("condition"),"_reconstruction.pdf"))
-          #   grDevices::pdf(pdf_path, width = 12, height = 7)
-          #   par(mfrow=c(2,1),mar=rep(2,4))
-          #
-          #   # voltage reconstruction example using electrode 1
-          #   g <- do.call(voltage_recon_plot, c(results[1:2],
-          #                                      list(fragility_pipeline$get_settings("t_window"),
-          #                                           fragility_pipeline$get_settings("t_step"),
-          #                                           fragility_pipeline$get_settings("trial_num"),
-          #                                           timepoints = 1:1000,
-          #                                           elec_num = 1,
-          #                                           lambda = fragility_pipeline$get_settings("lambda"))
-          #   ))
-          #   print(g)
-          #
-          #   grDevices::dev.off()
-          # }, silent = TRUE)
         })
     }
 

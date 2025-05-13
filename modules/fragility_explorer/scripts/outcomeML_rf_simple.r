@@ -66,6 +66,10 @@ roc_data <- data.frame(
   Thresholds = roc_obj$thresholds
 )
 
+roc_data<-roc_data|>group_by(FPR)|>summarize(
+  Thresholds=Thresholds[which.max(TPR)],
+  TPR=TPR[which.max(TPR)])
+
 roc_plot <- ggplot(roc_data, aes(x = 1 - FPR, y = TPR)) +  # FPR is 1 - Specificity
   geom_line(color = "blue", size = 1.2) +
   geom_area(alpha = 0.2) +  # Add area under the curve
