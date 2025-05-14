@@ -354,7 +354,7 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, la
   title <- repository$epoch_name
   fragtest<-EZFragility::calcAdjFrag(
     epoch = epoch, window = t_window,
-    step = t_step, parallel = TRUE, progress = TRUE
+    step = t_step, nSearch = nSearch, parallel = TRUE, progress = TRUE
   )
 
   ## stop the parallel backend
