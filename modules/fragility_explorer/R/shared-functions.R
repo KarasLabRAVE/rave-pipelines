@@ -288,6 +288,7 @@ fragilityRow <- function(A, nSearch = 100) {
 calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, lambda = NULL, nSearch = 100, fs_new = NULL) {
   n_tps <- length(repository$voltage$dimnames$Time)
   n_elec <- length(repository$voltage$dimnames$Electrode)
+  fs <- repository$sample_rate
 
   # Number of steps
   n_steps <- floor((n_tps - t_window) / t_step) + 1
@@ -326,36 +327,67 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, la
   arr[] <- arr[]/signalScaling
 
   if(!is.null(fs_new)) {
-    arr <- gsignal::resample(arr[],fs_new,round(repository$sample_rate))
+    arr <- gsignal::resample(arr[],fs_new,round(fs))
     n_tps <- dim(arr)[1]
     n_steps <- floor((n_tps - t_window) / t_step) + 1
+    fs <- fs_new
   }
 
-  pt01EpochRaw <- t(arr[])
-
+  # integration of EZFragility devel version
+  timeSeries <- t(arr[])
   goodChannels <- repository$electrode_list
-  rownames(pt01EpochRaw) <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% goodChannels]
+  good_channel_nms <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% goodChannels]
+  times <- seq(repository$time_windows[[1]][1], repository$time_windows[[1]][2], length.out=ncol(timeSeries))
   sozNames<-repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
-  sozIndex<-which(repository$electrode_list%in%soz==TRUE)
+  soz_logi <- repository$electrode_list%in%soz
 
-  ## Add time stamps to the columns
-  times <- seq(repository$time_windows[[1]][1], repository$time_windows[[1]][2], length.out=ncol(pt01EpochRaw))
-  times_with_sign <- ifelse(times >= 0, paste0("+", times), as.character(times))
-  colnames(pt01EpochRaw)<-times_with_sign
+  epoch <- Epoch::Epoch(
+    table = timeSeries,
+    electrodes=good_channel_nms,
+    times = times,
+    rowData = data.frame(soz = soz_logi),
+    metaData = data.frame(
+      patient = repository$subject$subject_code,
+      sozNames = sozNames,
+      samplingRate = fs
+      #source = "National Institute of Health"
+    )
+  )
 
-  pt01EcoG<-pt01EpochRaw
-  attr(pt01EcoG, "sozIndex") <- sozIndex
-  attr(pt01EcoG, "sozNames") <- sozNames
-
-  cl <- parallel::makeCluster(4, type = "SOCK")
+  cl <- parallel::makeCluster(6, type = "SOCK")
   doSNOW::registerDoSNOW(cl)
 
-  epoch <- EZFragility::Epoch(pt01EcoG)
-  title <- repository$epoch_name
-  fragtest<-EZFragility::calcAdjFrag(
+  fragtest <- EZFragility::calcAdjFrag(
     epoch = epoch, window = t_window,
     step = t_step, nSearch = nSearch, parallel = TRUE, progress = TRUE
   )
+
+  # old EZFragility integration
+  # pt01EpochRaw <- t(arr[])
+  #
+  # goodChannels <- repository$electrode_list
+  # rownames(pt01EpochRaw) <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% goodChannels]
+  # sozNames<-repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
+  # sozIndex<-which(repository$electrode_list%in%soz==TRUE)
+  #
+  # ## Add time stamps to the columns
+  # times <- seq(repository$time_windows[[1]][1], repository$time_windows[[1]][2], length.out=ncol(pt01EpochRaw))
+  # times_with_sign <- ifelse(times >= 0, paste0("+", times), as.character(times))
+  # colnames(pt01EpochRaw)<-times_with_sign
+  #
+  # pt01EcoG<-pt01EpochRaw
+  # attr(pt01EcoG, "sozIndex") <- sozIndex
+  # attr(pt01EcoG, "sozNames") <- sozNames
+  #
+  # cl <- parallel::makeCluster(4, type = "SOCK")
+  # doSNOW::registerDoSNOW(cl)
+  #
+  # epoch <- EZFragility::Epoch(pt01EcoG)
+  # title <- repository$epoch_name
+  # fragtest<-EZFragility::calcAdjFrag(
+  #   epoch = epoch, window = t_window,
+  #   step = t_step, nSearch = nSearch, parallel = TRUE, progress = TRUE
+  # )
 
   ## stop the parallel backend
   parallel::stopCluster(cl)
