@@ -45,7 +45,7 @@ module_server <- function(input, output, session, ...){
       trial_num <- which(input$condition == component_container$data$trial_choices)
       t_step <- input$t_window * (as.numeric(gsub("%","",input$t_step_percentage)) / 100)
       if (input$lambda == "") {
-        lambda <- FALSE
+        lambda <- NULL
       } else {
         lambda <- as.numeric(input$lambda)
       }
@@ -53,6 +53,12 @@ module_server <- function(input, output, session, ...){
       electrodes <- component_container$data$repository$electrode_table$Electrode
 
       sozc <- electrodes[!(electrodes%in%dipsaus::parse_svec(input$soz))]
+
+      if(input$fs_new_TF) {
+        fs_new <- input$fs_new
+      } else {
+        fs_new <- NULL
+      }
 
       pipeline$set_settings(
         display_electrodes = display,
@@ -62,9 +68,8 @@ module_server <- function(input, output, session, ...){
         t_step = t_step,
         sz_onset = input$sz_onset,
         lambda = lambda,
-        #threshold_start = input$threshold_limits[1],
-        #threshold_end = input$threshold_limits[2],
-        #threshold = input$threshold,
+        nSearch = as.numeric(input$nSearch),
+        fs_new = fs_new,
         soz = dipsaus::parse_svec(input$soz),
         sozc = sozc
       )
@@ -192,6 +197,12 @@ module_server <- function(input, output, session, ...){
         min = component_container$data$repository$time_windows[[1]][1],
         max = component_container$data$repository$time_windows[[1]][2],
         value = 0
+      )
+
+      shiny::updateTextInput(
+        session = session,
+        inputId = "fs_new",
+        value = component_container$data$repository$sample_rate
       )
 
       # shiny::updateSliderInput(

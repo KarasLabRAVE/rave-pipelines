@@ -17,56 +17,50 @@ rm(._._env_._.)
     quote({
         yaml::read_yaml(settings_path)
     }), deps = "settings_path", cue = targets::tar_cue("always")), 
-    input_lambda = targets::tar_target_raw("lambda", quote({
-        settings[["lambda"]]
-    }), deps = "settings"), input_sz_onset = targets::tar_target_raw("sz_onset", 
+    input_fs_new = targets::tar_target_raw("fs_new", quote({
+        settings[["fs_new"]]
+    }), deps = "settings"), input_nSearch = targets::tar_target_raw("nSearch", 
         quote({
-            settings[["sz_onset"]]
+            settings[["nSearch"]]
         }), deps = "settings"), input_project_name = targets::tar_target_raw("project_name", 
         quote({
             settings[["project_name"]]
         }), deps = "settings"), input_subject_code = targets::tar_target_raw("subject_code", 
         quote({
             settings[["subject_code"]]
-        }), deps = "settings"), input_reference_name = targets::tar_target_raw("reference_name", 
-        quote({
-            settings[["reference_name"]]
-        }), deps = "settings"), input_epoch_time_window = targets::tar_target_raw("epoch_time_window", 
-        quote({
-            settings[["epoch_time_window"]]
-        }), deps = "settings"), input_t_step = targets::tar_target_raw("t_step", 
-        quote({
-            settings[["t_step"]]
         }), deps = "settings"), input_epoch_name = targets::tar_target_raw("epoch_name", 
         quote({
             settings[["epoch_name"]]
-        }), deps = "settings"), input_t_window = targets::tar_target_raw("t_window", 
+        }), deps = "settings"), input_epoch_time_window = targets::tar_target_raw("epoch_time_window", 
         quote({
-            settings[["t_window"]]
-        }), deps = "settings"), input_display_electrodes = targets::tar_target_raw("display_electrodes", 
+            settings[["epoch_time_window"]]
+        }), deps = "settings"), input_reference_name = targets::tar_target_raw("reference_name", 
         quote({
-            settings[["display_electrodes"]]
+            settings[["reference_name"]]
         }), deps = "settings"), input_load_electrodes = targets::tar_target_raw("load_electrodes", 
         quote({
             settings[["load_electrodes"]]
-        }), deps = "settings"), input_trial_num = targets::tar_target_raw("trial_num", 
+        }), deps = "settings"), input_display_electrodes = targets::tar_target_raw("display_electrodes", 
         quote({
-            settings[["trial_num"]]
-        }), deps = "settings"), input_signalScaling = targets::tar_target_raw("signalScaling", 
-        quote({
-            settings[["signalScaling"]]
-        }), deps = "settings"), input_threshold_start = targets::tar_target_raw("threshold_start", 
-        quote({
-            settings[["threshold_start"]]
-        }), deps = "settings"), input_threshold_end = targets::tar_target_raw("threshold_end", 
-        quote({
-            settings[["threshold_end"]]
-        }), deps = "settings"), input_threshold = targets::tar_target_raw("threshold", 
-        quote({
-            settings[["threshold"]]
+            settings[["display_electrodes"]]
         }), deps = "settings"), input_condition = targets::tar_target_raw("condition", 
         quote({
             settings[["condition"]]
+        }), deps = "settings"), input_trial_num = targets::tar_target_raw("trial_num", 
+        quote({
+            settings[["trial_num"]]
+        }), deps = "settings"), input_t_window = targets::tar_target_raw("t_window", 
+        quote({
+            settings[["t_window"]]
+        }), deps = "settings"), input_t_step = targets::tar_target_raw("t_step", 
+        quote({
+            settings[["t_step"]]
+        }), deps = "settings"), input_sz_onset = targets::tar_target_raw("sz_onset", 
+        quote({
+            settings[["sz_onset"]]
+        }), deps = "settings"), input_lambda = targets::tar_target_raw("lambda", 
+        quote({
+            settings[["lambda"]]
         }), deps = "settings"), input_soz = targets::tar_target_raw("soz", 
         quote({
             settings[["soz"]]
@@ -186,7 +180,8 @@ rm(._._env_._.)
             .__target_expr__. <- quote({
                 adj_frag_info <- calc_adj_frag(repository = repository, 
                   trial_num = trial_num, t_window = t_window, 
-                  t_step = t_step, lambda = lambda)
+                  t_step = t_step, soz = soz, sozc = sozc, lambda = lambda, 
+                  nSearch = nSearch, fs_new = fs_new)
             })
             tryCatch({
                 eval(.__target_expr__.)
@@ -200,18 +195,21 @@ rm(._._env_._.)
                 {
                   adj_frag_info <- calc_adj_frag(repository = repository, 
                     trial_num = trial_num, t_window = t_window, 
-                    t_step = t_step, lambda = lambda)
+                    t_step = t_step, soz = soz, sozc = sozc, 
+                    lambda = lambda, nSearch = nSearch, fs_new = fs_new)
                 }
                 adj_frag_info
             }), target_depends = c("repository", "trial_num", 
-            "t_window", "t_step", "lambda")), deps = c("repository", 
-        "trial_num", "t_window", "t_step", "lambda"), cue = targets::tar_cue("thorough"), 
-        pattern = NULL, iteration = "list"), find_quantiles = targets::tar_target_raw(name = "quantiles", 
+            "t_window", "t_step", "soz", "sozc", "lambda", "nSearch", 
+            "fs_new")), deps = c("repository", "trial_num", "t_window", 
+        "t_step", "soz", "sozc", "lambda", "nSearch", "fs_new"
+        ), cue = targets::tar_cue("thorough"), pattern = NULL, 
+        iteration = "list"), find_quantiles = targets::tar_target_raw(name = "quantiles", 
         command = quote({
             .__target_expr__. <- quote({
                 quantiles <- frag_quantile(repository = repository, 
                   f = adj_frag_info$frag, t_window = t_window, 
-                  t_step = t_step, soz = soz, sozc = sozc)
+                  t_step = t_step, soz = soz, sozc = sozc, fs_new = fs_new)
             })
             tryCatch({
                 eval(.__target_expr__.)
@@ -225,10 +223,12 @@ rm(._._env_._.)
                 {
                   quantiles <- frag_quantile(repository = repository, 
                     f = adj_frag_info$frag, t_window = t_window, 
-                    t_step = t_step, soz = soz, sozc = sozc)
+                    t_step = t_step, soz = soz, sozc = sozc, 
+                    fs_new = fs_new)
                 }
                 quantiles
             }), target_depends = c("repository", "adj_frag_info", 
-            "t_window", "t_step", "soz", "sozc")), deps = c("repository", 
-        "adj_frag_info", "t_window", "t_step", "soz", "sozc"), 
-        cue = targets::tar_cue("thorough"), pattern = NULL, iteration = "list"))
+            "t_window", "t_step", "soz", "sozc", "fs_new")), 
+        deps = c("repository", "adj_frag_info", "t_window", "t_step", 
+        "soz", "sozc", "fs_new"), cue = targets::tar_cue("thorough"), 
+        pattern = NULL, iteration = "list"))

@@ -358,8 +358,8 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, la
   doSNOW::registerDoSNOW(cl)
 
   fragtest <- EZFragility::calcAdjFrag(
-    epoch = epoch, window = t_window,
-    step = t_step, nSearch = nSearch, parallel = TRUE, progress = TRUE
+    epoch = epoch, window = t_window, step = t_step,
+    lambda = lambda, nSearch = nSearch, parallel = TRUE, progress = TRUE
   )
 
   # old EZFragility integration

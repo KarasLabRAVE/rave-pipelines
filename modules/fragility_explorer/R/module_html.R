@@ -42,22 +42,53 @@ module_html <- function(){
                       selected = "50%",
                       width = "100%"
                     )
+                  ),
+                  shidashi::flex_item(
+                    shiny::selectInput(
+                      inputId = ns("nSearch"),
+                      label = "# of lambdas to search through",
+                      choices = 100:200,
+                      width = "100%"
+                    )
                   )
                 ),
-                shidashi::flex_item(
-                  shiny::textInput(
-                    inputId = ns("soz"),
-                    label = "SOZ Electrodes",
-                    value = "",
-                    width = "100%"
+
+
+                # new line
+                shidashi::flex_break(),
+
+                shidashi::flex_container(
+                  shidashi::flex_item(
+                    shiny::textInput(
+                      inputId = ns("soz"),
+                      label = "SOZ Electrodes",
+                      value = "",
+                      width = "100%"
+                    )
+                  ),
+                  shidashi::flex_item(
+                    shiny::selectInput(
+                      inputId = ns("condition"),
+                      label = "Choose trial",
+                      choices = 1:4,
+                      width = "100%"
+                    )
                   )
                 ),
-                shidashi::flex_item(
-                  shiny::selectInput(
-                    inputId = ns("condition"),
-                    label = "Choose trial",
-                    choices = 1:4,
-                    width = "100%"
+                shidashi::flex_container(
+                  shidashi::flex_item(
+                    shiny::checkboxInput(
+                      inputId = ns("fs_new_TF"),
+                      label = "Resample?",
+                      width = "100%"
+                    )
+                  ),
+                  shidashi::flex_item(
+                    shiny::textInput(
+                      inputId = ns("fs_new"),
+                      label = "Resample rate:",
+                      width = "100%"
+                    )
                   )
                 )
               ),
