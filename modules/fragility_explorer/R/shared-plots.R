@@ -134,15 +134,26 @@ fragility_plot <- function(repository, adj_frag_info, pipeline_settings, display
 
   fplot$Electrode <- factor(fplot$Electrode, levels = rev(unique(fplot$Electrode))) # reversed for display
 
+  electrodes <- rev(unique(fplot$Electrode))
+  N <- length(electrodes)
+  max_labels <- 50
+  spacing <- max(1, ceiling(N / max_labels))
+  keep_idx <- seq(1, N, by = spacing)
+  visible_labels <- electrodes[keep_idx]
+
+  y_labels <- ifelse(electrodes %in% visible_labels, levels(electrodes), "")
+  y_colors <- ifelse(electrodes %in% visible_labels, rev(colorelec), "transparent")
+
   ggplot(fplot, aes(x = Time, y = Electrode, fill = Value)) +
     geom_tile() +
     ggtitle(titlepng)+
     labs(x = "Time (s)", y = "Electrode") +
     scale_fill_gradient2(low="navy", mid="white", high="red",midpoint=0.5) +  #
     geom_vline(xintercept = sz_onset, color = "blue") +
+    scale_y_discrete(breaks = electrodes, labels = y_labels) +
     theme_minimal() +
     theme(
-      axis.text.y = ggtext::element_markdown(size = 5,colour=rev(colorelec)), # reversed for display
+      axis.text.y = ggtext::element_markdown(size = 10,colour=rev(colorelec)), # reversed for display
     )
 }
 
