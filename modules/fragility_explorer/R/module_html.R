@@ -113,7 +113,7 @@ module_html <- function(){
                   shiny::checkboxInput(
                     inputId = ns("sepsoz"),
                     label = "Separate SOZ electrodes? (displayed in red)",
-                    value = T
+                    value = FALSE
                   )
                 )
               ),

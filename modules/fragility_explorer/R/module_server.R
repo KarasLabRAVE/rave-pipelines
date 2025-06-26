@@ -74,6 +74,8 @@ module_server <- function(input, output, session, ...){
         sozc = sozc
       )
 
+      #print(pipeline$get_settings())
+
       #' Run pipeline without blocking the main session
       #' The trick to speed up is to set
       #' `async=TRUE` will run the pipeline in the background
@@ -249,7 +251,8 @@ module_server <- function(input, output, session, ...){
       results <- pipeline$read(var_names = c("repository","adj_frag_info"))
       display_electrodes <- dipsaus::parse_svec(input$display_electrodes)
 
-      voltage_plot(results$repository, results$adj_frag_info, display_electrodes)
+      voltage_plot(results$repository, results$adj_frag_info, display_electrodes,
+                   pipeline$get_settings("soz"), pipeline$get_settings("sozc"), input$sepsoz)
 
       # do.call(voltage_recon_plot, c(results[1:2],
       #                               list(pipeline$get_settings("t_window"),

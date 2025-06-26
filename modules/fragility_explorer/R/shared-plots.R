@@ -1,13 +1,32 @@
-voltage_plot <- function(repository, adj_frag_info, display_electrodes){
+voltage_plot <- function(repository, adj_frag_info, display_electrodes, soz, sozc, sepsoz){
 
   display_electrodes_i <- match(display_electrodes, repository$electrode_list)
   vmat <- adj_frag_info$voltage[,display_electrodes_i]
+  times <- repository$voltage$dimnames$Time
 
-  #vmat <- vmat[seq(1,nrow(vmat),4),] # compress by factor of 4 to save plotting time
+  colorelec <- ifelse(display_electrodes%in%soz,"red","black")
+
+  vmat <- vmat[seq(1,nrow(vmat),4),] # compress by factor of 4 to save plotting time
+  times <- times[seq(1,length(times),4)]
 
   t <- dim(vmat)[1] # of timepoints
   N <- dim(vmat)[2] # of electrodes
   z <- (vmat - mean(vmat)) / sd(vmat) # z score
+
+  display_electrode_names <- repository$electrode_table$Label[display_electrodes_i]
+
+  if (sepsoz){
+    # create voltage plot with soz electrodes separated from sozc electrodes
+    soz_i <- match(soz,display_electrodes)
+    soz_i <- soz_i[!is.na(soz_i)]
+    sozc_i <- match(sozc,display_electrodes)
+    sozc_i <- sozc_i[!is.na(sozc_i)]
+    z <- z[,c(soz_i,sozc_i)]
+    colorelec <- colorelec[c(soz_i,sozc_i)]
+    display_electrode_names <- display_electrode_names[c(soz_i,sozc_i)]
+  }
+
+  z <- z[,ncol(z):1] # reverse matrix for display
 
   par(mar=c(3,6,0,0))
   rutabaga::plot_clean(repository$voltage$dimnames$Time, -3:N*3)
@@ -15,10 +34,26 @@ voltage_plot <- function(repository, adj_frag_info, display_electrodes){
   abline(h=0:(N-1)*3, col = "skyblue") # add  horizontal lines
 
   for(ii in 1:ncol(vmat)) {
-    lines(x = repository$voltage$dimnames$Time, y = z[,ii]+(ii-1)*3) # plot lines
+    lines(x = times, y = z[,ii]+(ii-1)*3) # plot lines
   }
 
-  axis(2, at=0:(N-1)*3, repository$electrode_table$Label[display_electrodes_i], las=1, tcl=0) # electrode labels
+  #axis(2, at=0:(N-1)*3, label = repository$electrode_table$Label[display_electrodes_i], las = 1, tcl=0) # electrode labels
+  axis(2, at=0:(N-1)*3, label = FALSE, tcl=0)
+
+  max_labels <- floor(par("pin")[2] / 0.1) # 0.1 inches per label
+  spacing <- ceiling(N / max_labels)
+  label_idx <- seq(1, N, by = spacing)
+  label_positions <- (label_idx - 1) * 3
+  label_text <- display_electrode_names[label_idx]
+  label_colors <- colorelec[label_idx]
+
+  text(x = par("usr")[1] - 0.5,  # left of plot
+       y = label_positions,
+       labels = rev(label_text), # reversed for display
+       col = rev(label_colors), # reversed for display
+       xpd = TRUE,
+       adj = 1,
+       cex = 0.8) # electrode labels
 }
 
 fragility_plot <- function(repository, adj_frag_info, pipeline_settings, display_electrodes, ranked, sepsoz, thresholding, buckets) {
@@ -31,10 +66,10 @@ fragility_plot <- function(repository, adj_frag_info, pipeline_settings, display
   sozc <- pipeline_settings$sozc
   sz_onset <- pipeline_settings$sz_onset
 
-  #sozNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
-  #sozcNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% sozc]
-  soz_i <- match(soz,repository$electrode_list)
-  sozc_i <- match(sozc,repository$electrode_list)
+  sozNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
+  sozcNames <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% sozc]
+  #soz_i <- match(soz,repository$electrode_list)
+  #sozc_i <- match(sozc,repository$electrode_list)
 
   if(ranked){
     note <- "ranked"
@@ -55,36 +90,49 @@ fragility_plot <- function(repository, adj_frag_info, pipeline_settings, display
   display_i <- match(display_electrodes,repository$electrode_list)
 
   if(any(repository$electrode_table$Label == "NoLabel")) {
-    elec_names <- repository$electrode_table$Electrode[match(c(soz,sozc), repository$electrode_table$Electrode)]
-    elec_names <- as.character(elec_names)
+    #elec_names <- repository$electrode_table$Electrode[match(c(soz,sozc), repository$electrode_table$Electrode)]
+    #elec_names <- as.character(elec_names)
+
+    display_electrode_names <- repository$electrode_table$Electrode[match(display_electrodes,repository$electrode_table$Electrode)]
+    display_electrode_names <- as.character(display_electrode_names)
     names(colorelec) <- as.character(display_electrodes)
   } else {
-    elec_names <- repository$electrode_table$Label[match(c(soz,sozc), repository$electrode_table$Electrode)]
+    #elec_names <- repository$electrode_table$Label[match(c(soz,sozc), repository$electrode_table$Electrode)]
+
+    display_electrode_names <- repository$electrode_table$Label[match(display_electrodes,repository$electrode_table$Electrode)]
     names(colorelec) <- dimnames(f)$Electrode[display_i]
   }
 
+  f_display <- f[display_electrode_names,]
+
   if (sepsoz){
     # create fragility map with soz electrodes separated from sozc electrodes
-    f <- f[c(soz_i,sozc_i),]
+    soz_i <- match(sozNames,attr(f_display, "dimnames")$Electrode)
+    soz_i <- soz_i[!is.na(soz_i)]
+    sozc_i <- match(sozcNames,attr(f_display, "dimnames")$Electrode)
+    sozc_i <- sozc_i[!is.na(sozc_i)]
+    f_display <- f_display[c(soz_i,sozc_i),]
     colorelec <- colorelec[c(soz_i,sozc_i)]
+    display_electrode_names <- display_electrode_names[c(soz_i,sozc_i)]
   }
 
   # convert time windows to seconds
   stimes <- (seq_len(n_steps)-1)*t_step/fs+epoch_time_window[1]
 
   # raw fragility map
-  fplot <- expand.grid(Time = stimes, Electrode = elec_names)
-  fplot$Value <- c(t(f))
+  fplot <- expand.grid(Time = stimes, Electrode = display_electrode_names)
+
+  fplot$Value <- c(t(f_display))
 
   titlepng=paste(subject_code,as.character(sz_num),note,"fragility",sep=" ")
 
   # only display selected electrodes
-  display_electrode_names <- repository$electrode_table$Label[match(display_electrodes,repository$electrode_table$Electrode)]
-  fplot <- dplyr::filter(fplot, Electrode%in%display_electrode_names)
 
   if (thresholding) {
     fplot$Value <- threshold_buckets(as.matrix(fplot$Value),as.numeric(unlist(strsplit(buckets, ","))))
   }
+
+  fplot$Electrode <- factor(fplot$Electrode, levels = rev(unique(fplot$Electrode))) # reversed for display
 
   ggplot(fplot, aes(x = Time, y = Electrode, fill = Value)) +
     geom_tile() +
@@ -94,7 +142,7 @@ fragility_plot <- function(repository, adj_frag_info, pipeline_settings, display
     geom_vline(xintercept = sz_onset, color = "blue") +
     theme_minimal() +
     theme(
-      axis.text.y = ggtext::element_markdown(size = 5,colour=colorelec),     # Adjust depending on electrodes
+      axis.text.y = ggtext::element_markdown(size = 5,colour=rev(colorelec)), # reversed for display
     )
 }
 
