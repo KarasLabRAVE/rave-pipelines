@@ -93,20 +93,6 @@ adj_frag_info <- calc_adj_frag(
 )
 ```
 
-#### Step 4: Find Quantiles
-
-```{rave find_quantiles, language = "R", export = "quantiles"}
-quantiles <- frag_quantile(
-  repository = repository,
-  f = adj_frag_info$frag,
-  t_window = t_window,
-  t_step = t_step,
-  soz = soz,
-  sozc = sozc,
-  fs_new = fs_new
-)
-```
-
 ## Build, Visualize, & Run
 
 Please make sure the following code block is at the end of your pipeline file. This block will build the pipeline and generate a `make-fragility_explorer.R` script with your pipeline markdown file. `RAVE` will use the generated pipeline script to execute the pipeline in the dashboard application, or in massive production mode.

@@ -313,7 +313,7 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, la
   if(!isTRUE(arr$get_header("ready", FALSE))) {
 
     loaded_electrodes <- repository$electrode_list
-    raveio::lapply_async(repository$voltage$data_list, function(v) {
+    lapply(repository$voltage$data_list, function(v) {
       e <- dimnames(v)$Electrode
       idx_e <- loaded_electrodes == e
 
@@ -335,15 +335,14 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, la
 
   # integration of EZFragility devel version
   timeSeries <- t(arr[])
-  goodChannels <- repository$electrode_list
-  good_channel_nms <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% goodChannels]
+  loaded_electrode_names <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% loaded_electrodes]
   times <- seq(repository$time_windows[[1]][1], repository$time_windows[[1]][2], length.out=ncol(timeSeries))
   sozNames<-repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
   soz_logi <- repository$electrode_list%in%soz
 
   epoch <- Epoch::Epoch(
     table = timeSeries,
-    electrodes=good_channel_nms,
+    electrodes=loaded_electrode_names,
     times = times,
     rowData = data.frame(soz = soz_logi),
     metaData = data.frame(
@@ -357,176 +356,17 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, la
   cl <- parallel::makeCluster(6, type = "SOCK")
   doSNOW::registerDoSNOW(cl)
 
-  fragtest <- EZFragility::calcAdjFrag(
+  fragres <- EZFragility::calcAdjFrag(
     epoch = epoch, window = t_window, step = t_step,
     lambda = lambda, nSearch = nSearch, parallel = TRUE, progress = TRUE
   )
-
-  # old EZFragility integration
-  # pt01EpochRaw <- t(arr[])
-  #
-  # goodChannels <- repository$electrode_list
-  # rownames(pt01EpochRaw) <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% goodChannels]
-  # sozNames<-repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
-  # sozIndex<-which(repository$electrode_list%in%soz==TRUE)
-  #
-  # ## Add time stamps to the columns
-  # times <- seq(repository$time_windows[[1]][1], repository$time_windows[[1]][2], length.out=ncol(pt01EpochRaw))
-  # times_with_sign <- ifelse(times >= 0, paste0("+", times), as.character(times))
-  # colnames(pt01EpochRaw)<-times_with_sign
-  #
-  # pt01EcoG<-pt01EpochRaw
-  # attr(pt01EcoG, "sozIndex") <- sozIndex
-  # attr(pt01EcoG, "sozNames") <- sozNames
-  #
-  # cl <- parallel::makeCluster(4, type = "SOCK")
-  # doSNOW::registerDoSNOW(cl)
-  #
-  # epoch <- EZFragility::Epoch(pt01EcoG)
-  # title <- repository$epoch_name
-  # fragtest<-EZFragility::calcAdjFrag(
-  #   epoch = epoch, window = t_window,
-  #   step = t_step, nSearch = nSearch, parallel = TRUE, progress = TRUE
-  # )
 
   ## stop the parallel backend
   parallel::stopCluster(cl)
 
   return(list(
-    voltage = arr[],
-    frag = fragtest$frag,
-    frag_ranked = fragtest$frag_ranked,
-    R2 = fragtest$R2,
-    lambdas = fragtest$lambdas
-  ))
-}
-
-calc_adj_frag_old <- function(repository, trial_num, t_window, t_step, lambda = NULL, nSearch = 100, fs_new = NULL) {
-
-  n_tps <- length(repository$voltage$dimnames$Time)
-  n_elec <- length(repository$voltage$dimnames$Electrode)
-
-  # Number of steps
-  n_steps <- floor((n_tps - t_window) / t_step) + 1
-
-  # slice of data
-  arr <- filearray::filearray_load_or_create(
-    filebase = tempfile(),
-    dimension = c(n_tps, n_elec),
-    type = "float", mode = "readwrite", partition_size = 1L,
-
-    # if repository has changed, re-calculate
-    repository_signature = repository$signature,
-    t_step = t_step, t_window = t_window,
-    trial_num = trial_num,
-
-    on_missing = function(arr) {
-      arr$set_header("ready", value = FALSE)
-    }
-  )
-
-  # check if header `ready` is not TRUE
-  if(!isTRUE(arr$get_header("ready", FALSE))) {
-
-    loaded_electrodes <- repository$electrode_list
-    raveio::lapply_async(repository$voltage$data_list, function(v) {
-      e <- dimnames(v)$Electrode
-      idx_e <- loaded_electrodes == e
-
-      arr[,idx_e] <- v[, trial_num, 1, drop = TRUE, dimnames = NULL]
-
-      return()
-    })
-  }
-
-  signalScaling <- 10^floor(log10(max(arr[])))
-  arr[] <- arr[]/signalScaling
-
-  if(!is.null(fs_new)) {
-    arr <- gsignal::resample(arr[],fs_new,repository$sample_rate)
-    n_tps <- dim(arr)[1]
-    n_steps <- floor((n_tps - t_window) / t_step) + 1
-  }
-
-  ## create adjacency array (array of adj matrices for each time window)
-  ## iw: The index of the window we are going to calculate fragility
-
-  res <- raveio::lapply_async(seq_len(n_steps), function(iw) {
-    ## Sample indices for the selected window
-    si <- seq_len(t_window-1) + (iw-1)*t_step
-    ## measurements at time point t
-    xt <- arr[si,]
-    ## measurements at time point t plus 1
-    xtp1 <- arr[si + 1,]
-
-    ## Coefficient matrix A (adjacency matrix)
-    ## each column is coefficients from a linear regression
-    ## formula: xtp1 = xt*A + E
-    if (!is.null(lambda)) {
-      #message(paste0("running with lambda = ", lambda))
-      Ai <- ridge(xt, xtp1, intercept = F, lambda = lambda, iw = iw)
-    } else {
-      #message("running lambda search")
-      Ai <- ridgesearchlambdadichomotomy(xt, xtp1, intercept = F, iw = iw)
-    }
-
-    R2 <- ridgeR2(xt,xtp1,Ai)
-
-    return(list(Ai = Ai, R2 = R2))
-  }, callback = function(iw) {
-    sprintf("Generating Adjacency Matrices|Timewindow %s", iw)
-  })
-
-  A <- unlist(lapply(res, function(w){
-    w$Ai
-  }))
-  dim(A) <- c(n_elec, n_elec, n_steps)
-  dimnames(A) <- list(
-    Electrode1 = repository$electrode_list,
-    Electrode2 = repository$electrode_list,
-    Step = seq_len(n_steps)
-  )
-
-  R2 <- unlist(lapply(res, function(w){
-    w$R2
-  }))
-  dim(R2) <- c(n_elec, n_steps)
-  dimnames(R2) <- list(
-    Electrode = repository$electrode_list,
-    Step = seq_len(n_steps)
-  )
-
-  lambdas <- rep(NA, length(res))
-
-  for(i in seq_len(n_steps)){
-    lambdas[i] <- attr(res[[i]]$Ai,"lambdaopt")
-  }
-
-  # calculate fragility
-  f <- unlist(raveio::lapply_async(seq_len(n_steps), function(iw){
-    fragilityRowNormalized(A[,,iw], nSearch = nSearch)
-  }, callback = function(iw) {
-    sprintf("Calculating Fragility|Timewindow %s", iw)
-  }))
-  dim(f) <- c(n_elec, n_steps)
-  f_naked <- f
-  dimnames(f) <- list(
-    Electrode = repository$electrode_list,
-    Step = seq_len(n_steps)
-  )
-
-  # ranked fragility map
-  f_rank <- matrix(rank(f), nrow(f), ncol(f))
-  attributes(f_rank) <- attributes(f)
-  f_rank <- f_rank/max(f_rank)
-
-  return(list(
-    voltage = arr[],
-    adj = A,
-    frag = f,
-    frag_ranked = f_rank,
-    R2 = R2,
-    lambdas = lambdas
+    epoch = epoch,
+    fragres = fragres
   ))
 }
 
@@ -733,89 +573,6 @@ voltage_resample <- function(v,fs_new,fs_old) {
   v_resample<-gsignal::resample(v,fs_new,fs_old)
   elec_resamp<-t(v_resample)
 }
-#
-# ridgecv <- function(xt, xtp1, parallel=FALSE) {
-#     if (!identical(dim(xt), dim(xtp1))) {
-#         stop("Unmatched dimension")
-#     }
-#     nel <- ncol(xt)
-#     x <- as.matrix(xt)
-#     ## parallel computing backend
-#     if (parallel){
-#         library(doParallel)
-#         library(foreach)
-#         if(!getDoParRegistered()){
-#             registerDoParallel(cores=parallel::detectCores())
-#         }
-#         A <- foreach(i = seq_len(nel), .packages=c("glmnet"), .export = "ridgecvTwoPass",.combine = cbind) %dopar%{
-#             y <- xtp1[, i]
-#             fitcoef <- ridgecvTwoPass(x,y)
-#             fitcoef <- as.numeric(fitcoef)
-#             fitcoef[-1]
-#         }
-#     }else{
-#         ## Coefficient matrix A
-#         ## each column is coefficients from a linear regression
-#         ## formula: xtp1 = xt*A + E
-#         A <- matrix(0, nel, nel)
-#         ## for each electrode
-#         for (i in seq_len(nel)) {
-#             y <- xtp1[, i]
-#             fitcoef <- tryCatch({
-#                 ridgecvTwoPass(x,y)
-#             }, error = function(e) {
-#                 fit <- glmnet::glmnet(x, y,
-#                     alpha = 0, lambda = 0,
-#                     standardize = FALSE,
-#                     intercept = FALSE
-#                 )
-#                 coef(fit)
-#             })
-#
-#             fitcoef <- as.numeric(fitcoef)
-#             A[, i] <- fitcoef[-1]
-#         }
-#         A
-#     }
-# }
-#
-# ridgecvTwoPass <- function(x, y, lambdaRange = 10^-rev(1:10)){
-#     set.seed(1)
-#     ## first pass: determine the scale of lambda
-#     fitcv1 <- glmnet::cv.glmnet(x, y,
-#         alpha = 0,
-#         standardize = FALSE,
-#         intercept = FALSE,
-#         type.measure="mse",
-#         lambda = lambdaRange,
-#         thresh = 1e-10
-#     )
-#     # plot(fitcv1)
-#     bestlambda <- fitcv1$lambda.min
-#
-#     ## if the best lambda is the smallest one, then we do not use ridge regression
-#     if (bestlambda==min(lambdaRange)) {
-#         fit <- glmnet::glmnet(x, y,
-#             alpha = 0, lambda = 0,
-#             standardize = FALSE,
-#             intercept = FALSE
-#         )
-#         return(coef(fit))
-#     }
-#
-#     ## second pass: determine the optimal lambda
-#     lambdaRange2 <- seq(bestlambda/10, bestlambda*10, length.out = 1000)
-#     fitcv2 <- glmnet::cv.glmnet(x, y,
-#         alpha = 0,
-#         standardize = FALSE,
-#         intercept = FALSE,
-#         type.measure="mse",
-#         lambda = lambdaRange2,
-#         thresh = 1e-10
-#     )
-#
-#     coef(fitcv2, s = fitcv2$lambda.min)
-# }
 
 predictRidge <- function(xt, A) {
     ## the data matrix
