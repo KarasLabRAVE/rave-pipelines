@@ -96,8 +96,7 @@ module_server <- function(input, output, session, ...){
         # check_interval = 0.1,
         # shortcut = TRUE,
         names = c(
-          "adj_frag_info",
-          "quantiles"
+          "adj_frag_info"
         )
       )
 
@@ -249,10 +248,15 @@ module_server <- function(input, output, session, ...){
       )
 
       results <- pipeline$read(var_names = c("repository","adj_frag_info"))
-      display_electrodes <- dipsaus::parse_svec(input$display_electrodes)
 
-      voltage_plot(results$repository, results$adj_frag_info, display_electrodes,
-                   pipeline$get_settings("soz"), pipeline$get_settings("sozc"), input$sepsoz)
+      voltage_plot <- EZFragility::visuIEEGData(results$adj_frag_info$epoch)
+      voltage_plot <- voltage_plot + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 1)
+      voltage_plot
+
+      #display_electrodes <- dipsaus::parse_svec(input$display_electrodes)
+
+      #voltage_plot(results$repository, results$adj_frag_info, display_electrodes,
+                   #pipeline$get_settings("soz"), pipeline$get_settings("sozc"), input$sepsoz)
 
       # do.call(voltage_recon_plot, c(results[1:2],
       #                               list(pipeline$get_settings("t_window"),
@@ -287,9 +291,19 @@ module_server <- function(input, output, session, ...){
 
       results <- pipeline$read(var_names = c("repository","adj_frag_info"))
 
-      fragility_plot(results$repository, results$adj_frag_info, pipeline$get_settings(),
-                     dipsaus::parse_svec(input$display_electrodes),
-                     input$ranked, input$sepsoz, input$thresholding, input$buckets)
+      if(input$sepsoz) {
+        frag_plot <- EZFragility::plotFragHeatmap(frag = results$adj_frag_info$fragres,
+                                                  groupIndex = results$adj_frag_info$epoch@metaData$sozNames)
+      } else {
+        frag_plot <- EZFragility::plotFragHeatmap(frag = results$adj_frag_info$fragres)
+      }
+
+      frag_plot <- frag_plot + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 2)
+      frag_plot
+
+      # fragility_plot(results$repository, results$adj_frag_info, pipeline$get_settings(),
+      #                dipsaus::parse_svec(input$display_electrodes),
+      #                input$ranked, input$sepsoz, input$thresholding, input$buckets)
     })
   )
 
@@ -314,7 +328,13 @@ module_server <- function(input, output, session, ...){
 
       results <- pipeline$read(var_names = c("repository","adj_frag_info"))
 
-      avg_f_over_time_plot(results$repository, results$adj_frag_info, pipeline$get_settings(),input$moving_avg_width)
+      avg_f_plot <- EZFragility::plotFragDistribution(frag = results$adj_frag_info$fragres,
+                                        groupIndex = results$adj_frag_info$epoch@metaData$sozNames)
+
+      avg_f_plot <- avg_f_plot + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 1)
+      avg_f_plot
+
+      #avg_f_over_time_plot(results$repository, results$adj_frag_info, pipeline$get_settings(),input$moving_avg_width)
     })
   )
 
@@ -337,9 +357,12 @@ module_server <- function(input, output, session, ...){
         )
       )
 
-      results <- pipeline$read(var_names = c("repository","quantiles"))
+      results <- pipeline$read(var_names = c("repository","adj_frag_info"))
 
-      quantiles_plot(results$repository, results$quantiles, pipeline$get_settings(), input$thresholding, input$buckets)
+      EZFragility::plotFragQuantile(frag = results$adj_frag_info$fragres,
+                                    groupIndex = results$adj_frag_info$epoch@metaData$sozNames)
+
+      # quantiles_plot(results$repository, results$quantiles, pipeline$get_settings(), input$thresholding, input$buckets)
     })
   )
 }

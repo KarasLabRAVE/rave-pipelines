@@ -1,3 +1,51 @@
+output_files <- function(repository, epoch, fragres, pipeline_settings, export) {
+  raveio::dir_create2(paste0(export))
+
+  # save raw fragility csvs
+  sz_num <- pipeline_settings$condition
+
+  raveio::safe_write_csv(
+    fragres@frag,
+    file.path(export, paste0(subject_code, "_", sz_num,"_fragility.csv"))
+  )
+
+  # save fragility heatmaps
+  sozIndex <- Epoch::metaData(epoch)$sozNames
+  EZFragility::plotFragHeatmap(fragres, groupIndex = sozIndex)
+  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_map.png"))
+
+  # save quantiles csv
+  fragstats <- fragStat(fragres, groupIndex = sozIndex)
+  raveio::safe_write_csv(
+    fragstats@qmatrix,
+    file.path(export, paste0("/",subject_code,"_",sz_num,"_quantile.csv"))
+  )
+
+  # save quantiles map
+  EZFragility::plotFragQuantile(fragres, groupIndex = sozIndex)
+  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_qmap.png"))
+
+  # save mean fragility csv
+  meandata <- cbind(fragstats@meanGroup, fragstats@meanRef, fragstats@sdGroup, fragstats@sdRef, fragres@startTimes)
+  colnames(meandata) <- c("mean_f_group","mean_f_ref","sd_f_group","sd_f_ref","time")
+  raveio::safe_write_csv(
+    meandata,
+    file.path(export, paste0("/",subject_code,"_",sz_num,"_meandata.csv"))
+  )
+
+  # save mean fragility plot
+  EZFragility::plotFragDistribution(fragres, groupIndex = sozIndex)
+  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_meanplot.png"))
+
+  # save R2
+  raveio::safe_write_csv(
+    rbind(fragres$R2, fragres$lambdas),
+    file.path(export, paste0("/",subject_code,"_",sz_num,"_R2.csv"))
+  )
+}
+
+# rest of these functions are deprecated
+
 voltage_plot <- function(repository, adj_frag_info, display_electrodes, soz, sozc, sepsoz){
 
   display_electrodes_i <- match(display_electrodes, repository$electrode_list)
@@ -224,52 +272,6 @@ quantiles_plot <- function(repository, quantile_results, pipeline_settings, thre
     theme(
       axis.text.y = element_text(size = 10),     # Adjust depending on electrodes
     )
-}
-
-output_files <- function(repository, epoch, fragres, pipeline_settings, export) {
-  raveio::dir_create2(paste0(export))
-
-  # save raw fragility csvs
-  sz_num <- pipeline_settings$condition
-
-  raveio::safe_write_csv(
-    fragres@frag,
-    file.path(export, paste0(subject_code, "_", sz_num,"_fragility.csv"))
-  )
-
-  # save fragility heatmaps
-  sozIndex <- Epoch::metaData(epoch)$sozNames
-  EZFragility::plotFragHeatmap(fragres, groupIndex = sozIndex)
-  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_map.png"))
-
-  # save quantiles csv
-  fragstats <- fragStat(fragres, groupIndex = sozIndex)
-  raveio::safe_write_csv(
-    fragstats@qmatrix,
-    file.path(export, paste0("/",subject_code,"_",sz_num,"_quantile.csv"))
-  )
-
-  # save quantiles map
-  EZFragility::plotFragQuantile(fragres, groupIndex = sozIndex)
-  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_qmap.png"))
-
-  # save mean fragility csv
-  meandata <- cbind(fragstats@meanGroup, fragstats@meanRef, fragstats@sdGroup, fragstats@sdRef, fragres@startTimes)
-  colnames(meandata) <- c("mean_f_group","mean_f_ref","sd_f_group","sd_f_ref","time")
-  raveio::safe_write_csv(
-    meandata,
-    file.path(export, paste0("/",subject_code,"_",sz_num,"_meandata.csv"))
-  )
-
-  # save mean fragility plot
-  EZFragility::plotFragDistribution(fragres, groupIndex = sozIndex)
-  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_meanplot.png"))
-
-  # save R2
-  raveio::safe_write_csv(
-    rbind(fragres$R2, fragres$lambdas),
-    file.path(export, paste0("/",subject_code,"_",sz_num,"_R2.csv"))
-  )
 }
 
 output_files_old <- function(repository, f, quantile_results, pipeline_settings, export, note, moving_avg_width = NULL) {
