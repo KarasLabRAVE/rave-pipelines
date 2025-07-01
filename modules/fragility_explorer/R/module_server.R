@@ -252,7 +252,15 @@ module_server <- function(input, output, session, ...){
       display_electrodes <- dipsaus::parse_svec(input$display_electrodes)
       display_electrodes_i <- match(display_electrodes, results$repository$electrode_list)
 
-      voltage_plot <- EZFragility::visuIEEGData(results$adj_frag_info$epoch[display_electrodes_i])
+      if(input$sepsoz) {
+        voltage_plot <- EZFragility::visuIEEGData(results$adj_frag_info$epoch[display_electrodes_i],
+                                                  groupIndex = results$adj_frag_info$epoch@metaData$sozNames)
+      } else {
+        voltage_plot <- EZFragility::visuIEEGData(results$adj_frag_info$epoch[display_electrodes_i])
+        colorelec <- ifelse(display_electrodes%in%pipeline$get_settings("soz"),"red","black")
+        voltage_plot <- voltage_plot + theme(axis.text.y = ggtext::element_markdown(color = rev(colorelec)))
+      }
+
       voltage_plot <- voltage_plot + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 1)
       voltage_plot
 
@@ -302,6 +310,8 @@ module_server <- function(input, output, session, ...){
                                                   groupIndex = results$adj_frag_info$epoch@metaData$sozNames)
       } else {
         frag_plot <- EZFragility::plotFragHeatmap(frag = results$adj_frag_info$fragres[display_electrodes_i])
+        colorelec <- ifelse(display_electrodes%in%pipeline$get_settings("soz"),"red","black")
+        frag_plot <- frag_plot + theme(axis.text.y = ggtext::element_markdown(color = rev(colorelec)))
       }
 
       frag_plot <- frag_plot + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 2)
@@ -335,7 +345,9 @@ module_server <- function(input, output, session, ...){
       results <- pipeline$read(var_names = c("repository","adj_frag_info"))
 
       avg_f_plot <- EZFragility::plotFragDistribution(frag = results$adj_frag_info$fragres,
-                                        groupIndex = results$adj_frag_info$epoch@metaData$sozNames)
+                                        groupIndex = results$adj_frag_info$epoch@metaData$sozNames,
+                                        bandType = "SEM",
+                                        rollingWindow = input$moving_avg_width)
 
       avg_f_plot <- avg_f_plot + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 1)
       avg_f_plot

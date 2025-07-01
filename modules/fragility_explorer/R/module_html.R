@@ -137,7 +137,7 @@ module_html <- function(){
                   shiny::numericInput(
                     inputId = ns("moving_avg_width"),
                     label = "Moving average width (set at 1 for no moving average)",
-                    value = 10
+                    value = 5
                   )
                 )
               ),

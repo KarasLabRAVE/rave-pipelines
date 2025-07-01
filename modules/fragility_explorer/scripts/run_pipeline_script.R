@@ -20,7 +20,6 @@ parameters <- list(
 # export_path <- paste0("/Volumes/bigbrain/Fragility_Results/",t_window,"-",t_step,"_lambda_n_",nSearch)
 # export_path
 # read patient_data file
-patient_key <- read.csv("/Volumes/bigbrain/Multipatient/patient_data_FINAL.csv")
 
 # define which patients to process from patient_data file
 #pts <- dipsaus::parse_svec("1-35,37-42,50-60,65-67,75-76,121,125,127,135,157-159")
@@ -43,7 +42,6 @@ for(t in 1:4) {
     nSearch <- parameters$nSearch[n]
 
     # choose where to export results
-    export_path <- paste0("/Volumes/bigbrain/EZFragility_Results/",t_window,"-",t_step,"_lambda_n_",nSearch)
     print(export_path)
 
     for(i in pts){
@@ -124,25 +122,15 @@ for(t in 1:4) {
             file.create(file.path(export, paste0(subject_code,"_",fragility_pipeline$get_settings("condition"),"_ERROR")))
           }
         },{
-          results <- c(fragility_pipeline$run(c("repository", "adj_frag_info","quantiles")))
+          results <- c(fragility_pipeline$run(c("repository", "adj_frag_info")))
 
           # force evaluation
-          #env <- c(fragility_pipeline$eval(c("repository", "adj_frag_info","quantiles")), shortcut = TRUE)
-          #results <- list(repository = env[[1]]$repository, adj_frag_info = env[[1]]$adj_frag_info, quantiles = env[[1]]$quantiles)
+          #env <- c(fragility_pipeline$eval(c("repository", "adj_frag_info")), shortcut = TRUE)
+          #results <- list(repository = env[[1]]$repository, adj_frag_info = env[[1]]$adj_frag_info)
 
-          moving_average_width <- 10
-
-          # save unranked results
-          output_files(results$repository, results$adj_frag_info$frag, results$quantiles,
-                       fragility_pipeline$get_settings(),export,"norank", moving_average_width)
-
-          # save ranked results
-          output_files(results$repository, results$adj_frag_info$frag_ranked, results$quantiles,
-                       fragility_pipeline$get_settings(),export,"ranked", moving_average_width)
-
-          # save R2 results
-          output_R2(results$repository, results$adj_frag_info$R2, results$adj_frag_info$lambdas,
-                    fragility_pipeline$get_settings(),export, fragility_pipeline$get_settings("fs_new"))
+          output_files(results$repository, results$adj_frag_info$epoch,
+                       results$adj_frag_info$fragres,
+                       fragility_pipeline$get_settings(), export)
         })
     }
 
@@ -150,12 +138,10 @@ for(t in 1:4) {
 }
 
 # DIPSAUS DEBUG START
+# load_electrodes <- dipsaus::parse_svec(1-4,7-24,26-36,42-43,46-54,56-69,72-95)
 # repository <- results$repository
 # adj_frag_info <- results$adj_frag_info
-# trial_num = 3
+# trial_num = 1
 # t_window = 250
 # t_step = 125
-# timepoints = 1:1000
-# elec_num = 1
-# percentile = 0.1
 # display_electrodes <- c(33,34,62:69,88:91)
