@@ -4,6 +4,7 @@ output_files <- function(repository, epoch, fragres, pipeline_settings, export) 
   sz_num <- pipeline_settings$condition
   display_electrodes_i <- match(pipeline_settings$display_electrodes, repository$electrode_list)
   sz_onset <- pipeline_settings$sz_onset
+  sz_onset_conv <- which.min(abs(fragres@startTimes - sz_onset))
 
   # save raw fragility csvs
   raveio::safe_write_csv(
@@ -17,7 +18,7 @@ output_files <- function(repository, epoch, fragres, pipeline_settings, export) 
   ggsave(paste0(export,"/",subject_code,"_",sz_num,"_voltage.png"), width = 10, height = 7, units = "in")
 
   # save fragility heatmaps
-  EZFragility::plotFragHeatmap(fragres[display_electrodes_i], groupIndex = sozIndex) + ggplot2::geom_vline(xintercept = sz_onset, color = "black", linetype = "dashed", linewidth = 1)
+  EZFragility::plotFragHeatmap(fragres[display_electrodes_i], groupIndex = sozIndex) + ggplot2::geom_vline(xintercept = sz_onset_conv, color = "black", linetype = "dashed", linewidth = 1)
   ggsave(paste0(export,"/",subject_code,"_",sz_num,"_map.png"), width = 10, height = 7, units = "in")
 
   # save quantiles csv
@@ -28,7 +29,7 @@ output_files <- function(repository, epoch, fragres, pipeline_settings, export) 
   )
 
   # save quantiles map
-  EZFragility::plotFragQuantile(fragres, groupIndex = sozIndex) + ggplot2::geom_vline(xintercept = sz_onset, color = "black", linetype = "dashed", linewidth = 1)
+  EZFragility::plotFragQuantile(fragres, groupIndex = sozIndex) + ggplot2::geom_vline(xintercept = sz_onset_conv, color = "black", linetype = "dashed", linewidth = 1)
   ggsave(paste0(export,"/",subject_code,"_",sz_num,"_qmap.png"), width = 10, height = 7, units = "in")
 
   # save mean fragility csv

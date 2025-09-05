@@ -321,7 +321,9 @@ module_server <- function(input, output, session, ...){
         frag_plot <- frag_plot + theme(axis.text.y = ggtext::element_markdown(color = rev(colorelec)))
       }
 
-      frag_plot <- frag_plot + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 2)
+      sz_onset_conv <- which.min(abs(results$adj_frag_info$fragres@startTimes - input$sz_onset))
+
+      frag_plot <- frag_plot + ggplot2::geom_vline(xintercept = sz_onset_conv, color = "black", linetype = "dashed", linewidth = 1)
       frag_plot
 
       # fragility_plot(results$repository, results$adj_frag_info, pipeline$get_settings(),
@@ -384,9 +386,12 @@ module_server <- function(input, output, session, ...){
 
       results <- pipeline$read(var_names = c("repository","adj_frag_info"))
 
-      EZFragility::plotFragQuantile(frag = results$adj_frag_info$fragres,
+      q_plot <- EZFragility::plotFragQuantile(frag = results$adj_frag_info$fragres,
                                     groupIndex = results$adj_frag_info$epoch@metaData$sozNames)
-        + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 1)
+
+      sz_onset_conv <- which.min(abs(results$adj_frag_info$fragres@startTimes - input$sz_onset))
+
+      q_plot + ggplot2::geom_vline(xintercept = sz_onset_conv, color = "black", linetype = "dashed", linewidth = 1)
 
       # quantiles_plot(results$repository, results$quantiles, pipeline$get_settings(), input$thresholding, input$buckets)
     })
