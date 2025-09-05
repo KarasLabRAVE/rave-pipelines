@@ -42,7 +42,13 @@ module_server <- function(input, output, session, ...){
 
       display <- dipsaus::parse_svec(input$display_electrodes)
 
-      trial_num <- which(input$condition == component_container$data$trial_choices)
+      if(!(input$condition %in% component_container$data$trial_choices)){
+        stop("Choose a trial!")
+      } else {
+        trial_num <- which(input$condition == component_container$data$trial_choices)
+      }
+
+
       t_step <- input$t_window * (as.numeric(gsub("%","",input$t_step_percentage)) / 100)
       if (input$lambda == "") {
         lambda <- NULL
@@ -55,7 +61,7 @@ module_server <- function(input, output, session, ...){
       sozc <- electrodes[!(electrodes%in%dipsaus::parse_svec(input$soz))]
 
       if(input$fs_new_TF) {
-        fs_new <- input$fs_new
+        fs_new <- as.numeric(input$fs_new)
       } else {
         fs_new <- NULL
       }
@@ -91,7 +97,7 @@ module_server <- function(input, output, session, ...){
         scheduler = "none",
         # type = "smart",
         # callr_function = NULL,
-        # progress_title = "Calculating in progress",
+        progress_title = "Calculating in progress",
         # async = TRUE,
         # check_interval = 0.1,
         # shortcut = TRUE,
@@ -307,9 +313,10 @@ module_server <- function(input, output, session, ...){
 
       if(input$sepsoz) {
         frag_plot <- EZFragility::plotFragHeatmap(frag = results$adj_frag_info$fragres[display_electrodes_i],
-                                                  groupIndex = results$adj_frag_info$epoch@metaData$sozNames)
+                                                  groupIndex = results$adj_frag_info$epoch@metaData$sozNames,
+                                                  ranked = input$ranked)
       } else {
-        frag_plot <- EZFragility::plotFragHeatmap(frag = results$adj_frag_info$fragres[display_electrodes_i])
+        frag_plot <- EZFragility::plotFragHeatmap(frag = results$adj_frag_info$fragres[display_electrodes_i], ranked = input$ranked)
         colorelec <- ifelse(display_electrodes%in%pipeline$get_settings("soz"),"red","black")
         frag_plot <- frag_plot + theme(axis.text.y = ggtext::element_markdown(color = rev(colorelec)))
       }
@@ -346,7 +353,7 @@ module_server <- function(input, output, session, ...){
 
       avg_f_plot <- EZFragility::plotFragDistribution(frag = results$adj_frag_info$fragres,
                                         groupIndex = results$adj_frag_info$epoch@metaData$sozNames,
-                                        bandType = "SEM",
+                                        bandType = input$sd_or_sem,
                                         rollingWindow = input$moving_avg_width)
 
       avg_f_plot <- avg_f_plot + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 1)
@@ -379,6 +386,7 @@ module_server <- function(input, output, session, ...){
 
       EZFragility::plotFragQuantile(frag = results$adj_frag_info$fragres,
                                     groupIndex = results$adj_frag_info$epoch@metaData$sozNames)
+        + ggplot2::geom_vline(xintercept = input$sz_onset, color = "black", linetype = "dashed", linewidth = 1)
 
       # quantiles_plot(results$repository, results$quantiles, pipeline$get_settings(), input$thresholding, input$buckets)
     })

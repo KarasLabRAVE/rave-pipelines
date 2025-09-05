@@ -1,41 +1,47 @@
 output_files <- function(repository, epoch, fragres, pipeline_settings, export) {
   raveio::dir_create2(paste0(export))
 
-  # save raw fragility csvs
   sz_num <- pipeline_settings$condition
+  display_electrodes_i <- match(pipeline_settings$display_electrodes, repository$electrode_list)
+  sz_onset <- pipeline_settings$sz_onset
 
+  # save raw fragility csvs
   raveio::safe_write_csv(
     fragres@frag,
     file.path(export, paste0(subject_code, "_", sz_num,"_fragility.csv"))
   )
 
-  # save fragility heatmaps
+  # save voltage plot
   sozIndex <- Epoch::metaData(epoch)$sozNames
-  EZFragility::plotFragHeatmap(fragres, groupIndex = sozIndex)
-  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_map.png"))
+  EZFragility::visuIEEGData(epoch[display_electrodes_i], groupIndex = sozIndex) + ggplot2::geom_vline(xintercept = sz_onset, color = "black", linetype = "dashed", linewidth = 1)
+  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_voltage.png"), width = 10, height = 7, units = "in")
+
+  # save fragility heatmaps
+  EZFragility::plotFragHeatmap(fragres[display_electrodes_i], groupIndex = sozIndex) + ggplot2::geom_vline(xintercept = sz_onset, color = "black", linetype = "dashed", linewidth = 1)
+  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_map.png"), width = 10, height = 7, units = "in")
 
   # save quantiles csv
-  fragstats <- fragStat(fragres, groupIndex = sozIndex)
+  fragstats <- EZFragility::fragStat(fragres, groupIndex = sozIndex)
   raveio::safe_write_csv(
     fragstats@qmatrix,
     file.path(export, paste0("/",subject_code,"_",sz_num,"_quantile.csv"))
   )
 
   # save quantiles map
-  EZFragility::plotFragQuantile(fragres, groupIndex = sozIndex)
-  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_qmap.png"))
+  EZFragility::plotFragQuantile(fragres, groupIndex = sozIndex) + ggplot2::geom_vline(xintercept = sz_onset, color = "black", linetype = "dashed", linewidth = 1)
+  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_qmap.png"), width = 10, height = 7, units = "in")
 
   # save mean fragility csv
-  meandata <- cbind(fragstats@meanGroup, fragstats@meanRef, fragstats@sdGroup, fragstats@sdRef, fragres@startTimes)
-  colnames(meandata) <- c("mean_f_group","mean_f_ref","sd_f_group","sd_f_ref","time")
+  meandata <- cbind(fragstats@groupMean, fragstats@refMean, fragstats@groupSD, fragstats@refSD, fragstats@groupSEM, fragstats@refSEM, fragres@startTimes)
+  colnames(meandata) <- c("groupMean","refMean","groupSD","refSD","groupSEM","refSEM","time")
   raveio::safe_write_csv(
     meandata,
     file.path(export, paste0("/",subject_code,"_",sz_num,"_meandata.csv"))
   )
 
   # save mean fragility plot
-  EZFragility::plotFragDistribution(fragres, groupIndex = sozIndex)
-  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_meanplot.png"))
+  EZFragility::plotFragDistribution(fragres, groupIndex = sozIndex, bandType = "SD", rollingWindow = 2) + ggplot2::geom_vline(xintercept = sz_onset, color = "black", linetype = "dashed", linewidth = 2)
+  ggsave(paste0(export,"/",subject_code,"_",sz_num,"_meanplot.png"), width = 10, height = 7, units = "in")
 
   # save R2
   raveio::safe_write_csv(

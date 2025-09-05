@@ -26,7 +26,7 @@ module_html <- function(){
                     shiny::sliderInput(
                       inputId = ns("t_window"),
                       label = "Time Window Size (ms)",
-                      min = 50, max = 1000, step = 50, value = 250,
+                      min = 50, max = 500, step = 50, value = 250,
                       width = "100%", post = " ms"
                     )
                   ),
@@ -57,38 +57,38 @@ module_html <- function(){
                 # new line
                 shidashi::flex_break(),
 
-                shidashi::flex_container(
-                  shidashi::flex_item(
-                    shiny::textInput(
-                      inputId = ns("soz"),
-                      label = "SOZ Electrodes",
-                      value = "",
-                      width = "100%"
-                    )
-                  ),
-                  shidashi::flex_item(
-                    shiny::selectInput(
-                      inputId = ns("condition"),
-                      label = "Choose trial",
-                      choices = 1:4,
-                      width = "100%"
-                    )
+                shidashi::flex_item(
+                  shiny::textInput(
+                    inputId = ns("soz"),
+                    label = "SOZ Electrodes",
+                    value = "",
+                    width = "100%"
                   )
                 ),
-                shidashi::flex_container(
-                  shidashi::flex_item(
-                    shiny::checkboxInput(
-                      inputId = ns("fs_new_TF"),
-                      label = "Resample?",
-                      width = "100%"
-                    )
-                  ),
-                  shidashi::flex_item(
-                    shiny::textInput(
-                      inputId = ns("fs_new"),
-                      label = "Resample rate:",
-                      width = "100%"
-                    )
+                shidashi::flex_item(
+                  shiny::selectInput(
+                    inputId = ns("condition"),
+                    label = "Choose trial",
+                    choices = 1:4,
+                    width = "100%"
+                  )
+                ),
+
+                # new line
+                shidashi::flex_break(),
+
+                shidashi::flex_item(
+                  shiny::checkboxInput(
+                    inputId = ns("fs_new_TF"),
+                    label = "Resample sampling rate?",
+                    width = "100%"
+                  )
+                ),
+                shidashi::flex_item(
+                  shiny::textInput(
+                    inputId = ns("fs_new"),
+                    label = "Resample rate:",
+                    width = "100%"
                   )
                 )
               ),
@@ -115,32 +115,41 @@ module_html <- function(){
                     label = "Separate SOZ electrodes? (displayed in red)",
                     value = FALSE
                   )
-                )
-              ),
-              ravedash::flex_group_box(
-                title = "Thresholding",
-                shidashi::flex_item(
-                  shiny::checkboxInput(
-                    inputId = ns("thresholding"),
-                    label = "Threshold?",
-                    value = F
-                  )
                 ),
-                shidashi::flex_item(
-                  shiny::textInput(
-                    inputId = ns("buckets"),
-                    label = "Threshold limits (must start with 0 and end with 1)",
-                    value = "0, 0.25, 0.5, 0.9, 1"
-                  )
-                ),
+                # new line
+                shidashi::flex_break(),
                 shidashi::flex_item(
                   shiny::numericInput(
                     inputId = ns("moving_avg_width"),
                     label = "Moving average width (set at 1 for no moving average)",
                     value = 5
                   )
+                ),
+                shidashi::flex_item(
+                  shiny::selectInput(
+                    inputId = ns("sd_or_sem"),
+                    label = "Display SD or SEM for average fragility plot",
+                    choices = c("SD","SEM")
+                  )
                 )
               ),
+              # ravedash::flex_group_box(
+              #   title = "Thresholding",
+              #   shidashi::flex_item(
+              #     shiny::checkboxInput(
+              #       inputId = ns("thresholding"),
+              #       label = "Threshold?",
+              #       value = F
+              #     )
+              #   ),
+              #   shidashi::flex_item(
+              #     shiny::textInput(
+              #       inputId = ns("buckets"),
+              #       label = "Threshold limits (must start with 0 and end with 1)",
+              #       value = "0, 0.25, 0.5, 0.9, 1"
+              #     )
+              #   )
+              # ),
               ravedash::flex_group_box(
                 title = "Advanced",
                 shidashi::flex_item(

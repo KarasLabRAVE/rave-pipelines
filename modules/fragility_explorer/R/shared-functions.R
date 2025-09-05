@@ -335,10 +335,20 @@ calc_adj_frag <- function(repository, trial_num, t_window, t_step, soz, sozc, la
 
   # integration of EZFragility devel version
   timeSeries <- t(arr[])
+
+  if(any(repository$electrode_table$Label == "NoLabel")) {
+    loaded_electrode_names <- as.character(loaded_electrodes)
+  } else {
+    loaded_electrode_names <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% loaded_electrodes]
+  }
+
   loaded_electrode_names <- repository$electrode_table$Label[repository$electrode_table$Electrode %in% loaded_electrodes]
+
   times <- seq(repository$time_windows[[1]][1], repository$time_windows[[1]][2], length.out=ncol(timeSeries))
   sozNames<-repository$electrode_table$Label[repository$electrode_table$Electrode %in% soz]
   soz_logi <- repository$electrode_list%in%soz
+
+
 
   epoch <- Epoch::Epoch(
     table = timeSeries,
